@@ -1,0 +1,61 @@
+# Cutover composition — nginx now fronts the monolith (iobuild-api:8080) instead of YARP gateway:8080
+services:
+  iobuild-api:
+    build:
+      context: ./backend
+      dockerfile: src/IoBuild.Api/Dockerfile
+    container_name: iobuild-api
+    restart: unless-stopped
+    environment:
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__IoBuild=Server=mysql-monolith;Port=3306;Database=iobuild;User=root;Password=iobuild
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4317
+    depends_on:
+      mysql-monolith:
+        condition: service_healthy
+
+  mysql-monolith:
+    image: mysql:8.0
+    container_name: iobuild-mysql-monolith
+    restart: unless-stopped
+    environment:
+      - MYSQL_ROOT_PASSWORD=iobuild
+      - MYSQL_DATABASE=iobuild
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # Jaeger — optional OTLP collector; app must start healthy when absent
+  jaeger:
+    image: jaegertracing/all-in-one:1.62
+    container_name: iobuild-jaeger
+    restart: unless-stopped
+    ports:
+      - "16686:16686"
+      - "4317:4317"
+      - "4318:4318"
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+
+  # Frontend — Vue SPA built via Vite
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: iobuild-frontend
+    restart: unless-stopped
+    depends_on:
+      - iobuild-api
+
+  nginx:
+    image: nginx:alpine
+    container_name: iobuild-nginx-cutover
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - iobuild-api
