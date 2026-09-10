@@ -17,11 +17,49 @@ public static class ProfilesEndpoints
             if (userId.HasValue) profiles = profiles.Where(profile => profile.UserId == userId.Value);
             return Results.Ok(await profiles.OrderBy(profile => profile.Id).ToListAsync(ct));
         }).RequireAuthorization();
-        group.MapPut("/{id:int}", async (int id, CreateProfileRequest request, IoBuildDbContext db, CancellationToken ct) => { var item = await db.Profiles.FindAsync([id], ct); if (item is null) return Results.NotFound(); item.Name = request.Name; item.Username = request.Username; await db.SaveChangesAsync(ct); return Results.Ok(item); }).RequireAuthorization();
-        group.MapPatch("/{userId:int}/photo", async (int userId, ReplaceProfilePhotoRequest request, ProfilePhotoWorkflow workflow, CancellationToken ct) => await workflow.ReplaceAsync(userId, request.ExpectedReference, request.Content, ct) ? Results.NoContent() : Results.Conflict()).RequireAuthorization();
+
+        group.MapGet("/{id:int}", async (int id, IoBuildDbContext db, CancellationToken ct) =>
+        {
+            var item = await db.Profiles.FindAsync([id], ct);
+            return item is not null ? Results.Ok(item) : Results.NotFound();
+        }).RequireAuthorization();
+
+        group.MapPut("/{id:int}", async (int id, CreateProfileRequest request, IoBuildDbContext db, CancellationToken ct) =>
+        {
+            var item = await db.Profiles.FindAsync([id], ct);
+            if (item is null) return Results.NotFound();
+
+            if (!string.IsNullOrWhiteSpace(request.Name)) item.Name = request.Name;
+            if (!string.IsNullOrWhiteSpace(request.Username)) item.Username = request.Username;
+            item.PhoneNumber = request.PhoneNumber;
+            item.Address = request.Address;
+            item.SecondEmail = request.SecondEmail;
+            item.Age = request.Age;
+            if (!string.IsNullOrWhiteSpace(request.PhotoUrl))
+            {
+                item.PhotoUrl = request.PhotoUrl;
+                item.CloudinaryReference = request.PhotoUrl;
+            }
+
+            await db.SaveChangesAsync(ct);
+            return Results.Ok(item);
+        }).RequireAuthorization();
+
+        group.MapPatch("/{userId:int}/photo", async (int userId, ReplaceProfilePhotoRequest request, ProfilePhotoWorkflow workflow, CancellationToken ct) =>
+            await workflow.ReplaceAsync(userId, request.ExpectedReference, request.Content, ct) ? Results.NoContent() : Results.Conflict()).RequireAuthorization();
+
         group.MapPost("", async (CreateProfileRequest request, CoreBusinessService service, CancellationToken ct) =>
         {
-            var profile = await service.CreateProfileAsync(request.UserId, request.Name, request.Username, ct);
+            var profile = await service.CreateProfileAsync(
+                request.UserId,
+                request.Name,
+                request.Username,
+                request.PhoneNumber,
+                request.Address,
+                request.SecondEmail,
+                request.Age,
+                request.PhotoUrl,
+                ct);
             return Results.Created($"/api/v1/profiles/{profile.Id}", profile);
         }).RequireAuthorization();
     }

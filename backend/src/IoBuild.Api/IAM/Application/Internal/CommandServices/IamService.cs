@@ -27,6 +27,7 @@ public sealed class IamService(
 
     public async Task<AuthenticatedUser> SignInAsync(SignIn request, CancellationToken cancellationToken = default)
     {
+        if (string.IsNullOrWhiteSpace(request.Email)) throw new UnauthorizedAccessException("Invalid email or password.");
         var user = await dbContext.IamUsers.SingleOrDefaultAsync(item => item.Email == request.Email.Trim().ToLowerInvariant(), cancellationToken);
         if (user is null || !passwordHasher.Verify(request.Password, user.PasswordHash)) throw new UnauthorizedAccessException("Invalid email or password.");
         return new AuthenticatedUser(user.Id, user.Email, user.Role, tokenIssuer.Issue(user));

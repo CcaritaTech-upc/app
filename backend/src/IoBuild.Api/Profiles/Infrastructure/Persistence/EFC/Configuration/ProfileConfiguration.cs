@@ -14,8 +14,13 @@ public static class ProfileConfiguration
             entity.HasIndex(profile => profile.UserId).IsUnique();
             entity.Property(profile => profile.Name).HasMaxLength(200).IsRequired();
             entity.Property(profile => profile.Username).HasMaxLength(100).IsRequired();
+            entity.Property(profile => profile.PhoneNumber).HasMaxLength(50);
+            entity.Property(profile => profile.Address).HasMaxLength(255);
+            entity.Property(profile => profile.SecondEmail).HasMaxLength(150);
+            entity.Property(profile => profile.Age);
             entity.Property(profile => profile.PhotoReference).HasMaxLength(128);
             entity.Property(profile => profile.CloudinaryReference).HasMaxLength(2000);
+            entity.Property(profile => profile.PhotoUrl).HasMaxLength(2000);
         });
     }
 }

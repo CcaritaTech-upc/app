@@ -81,6 +81,39 @@ public sealed class CoreBusinessWorkflowTests
         var profile = await db.Profiles.SingleAsync();
         Assert.Equal("sha256:2c8648d103e3dd7ad87660da0f126a1443b6d21ac1bd3ec000c5e24e2373a90c", profile.PhotoReference);
         Assert.Equal("cloudinary://asset", profile.CloudinaryReference);
+        Assert.Equal("cloudinary://asset", profile.PhotoUrl);
+    }
+
+    [Fact]
+    [Trait("Category", "CoreBusiness")]
+    public async Task CreateProfile_persists_phone_address_second_email_age_and_photo()
+    {
+        await using var db = CreateDb();
+        var service = new ProfileCommandService(db);
+        var created = await service.CreateProfileAsync(
+            userId: 99,
+            name: "John Builder",
+            username: "jbuilder",
+            phoneNumber: "+51987654321",
+            address: "Av. Primavera 123",
+            secondEmail: "alt@iobuild.test",
+            age: 32,
+            photoUrl: "https://res.cloudinary.com/demo/image/upload/sample.jpg");
+
+        Assert.Equal(99, created.UserId);
+        Assert.Equal("John Builder", created.Name);
+        Assert.Equal("jbuilder", created.Username);
+        Assert.Equal("+51987654321", created.PhoneNumber);
+        Assert.Equal("Av. Primavera 123", created.Address);
+        Assert.Equal("alt@iobuild.test", created.SecondEmail);
+        Assert.Equal(32, created.Age);
+        Assert.Equal("https://res.cloudinary.com/demo/image/upload/sample.jpg", created.PhotoUrl);
+
+        var fromDb = await db.Profiles.SingleAsync(p => p.UserId == 99);
+        Assert.Equal("+51987654321", fromDb.PhoneNumber);
+        Assert.Equal("Av. Primavera 123", fromDb.Address);
+        Assert.Equal("alt@iobuild.test", fromDb.SecondEmail);
+        Assert.Equal(32, fromDb.Age);
     }
 
     [Fact]

@@ -17,6 +17,15 @@ public sealed class CoreBusinessService(IoBuildDbContext dbContext)
     public Task<Project> CreateProjectAsync(string name, string description, string location, int totalUnits, int builderId, string? imageUrl, CancellationToken cancellationToken = default)
         => _projects.CreateProjectAsync(name, description, location, totalUnits, builderId, imageUrl, cancellationToken);
 
-    public Task<Profile> CreateProfileAsync(int userId, string name, string username, CancellationToken cancellationToken = default)
-        => _profiles.CreateProfileAsync(userId, name, username, cancellationToken);
+    public Task<Profile> CreateProfileAsync(
+        int userId,
+        string name,
+        string username,
+        string? phoneNumber = null,
+        string? address = null,
+        string? secondEmail = null,
+        int? age = null,
+        string? photoUrl = null,
+        CancellationToken cancellationToken = default)
+        => _profiles.CreateProfileAsync(userId, name, username, phoneNumber, address, secondEmail, age, photoUrl, cancellationToken);
 }

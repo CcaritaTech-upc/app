@@ -23,6 +23,7 @@ public sealed class ProfilePhotoWorkflow(IoBuildDbContext dbContext, ICloudinary
         if (profile is null || !string.Equals(profile.PhotoReference, expectedReference, StringComparison.Ordinal)) return false;
         profile.PhotoReference = $"sha256:{Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(imageContent))).ToLowerInvariant()}";
         profile.CloudinaryReference = uploadedReference;
+        profile.PhotoUrl = uploadedReference;
         await dbContext.SaveChangesAsync(cancellationToken);
         return true;
     }

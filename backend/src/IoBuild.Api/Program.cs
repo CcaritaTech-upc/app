@@ -318,7 +318,15 @@ public partial class Program;
 // existing tests and frontend contracts stay green.
 
 public sealed record CreateProjectRequest(string Name, string Description, string Location, int TotalUnits, int BuilderId, string? ImageUrl);
-public sealed record CreateProfileRequest(int UserId, string Name, string Username);
+public sealed record CreateProfileRequest(
+    int UserId,
+    string Name,
+    string Username,
+    string? PhoneNumber = null,
+    string? Address = null,
+    string? SecondEmail = null,
+    int? Age = null,
+    string? PhotoUrl = null);
 public sealed record CreateSubscriptionRequest(int BuilderId, int PlanId, DateTimeOffset StartDate, DateTimeOffset? EndDate);
 public sealed record ReplaceProfilePhotoRequest(string ExpectedReference, string Content);
 public sealed record ProjectStructureRequest(int Floors, int UnitsPerFloor, List<int>? FloorNumbers);
