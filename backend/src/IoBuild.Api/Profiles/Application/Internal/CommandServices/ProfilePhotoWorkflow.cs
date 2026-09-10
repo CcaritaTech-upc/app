@@ -1,10 +1,11 @@
 using System.Security.Cryptography;
 using System.Text;
-using IoBuild.Api.CoreBusiness;
 using IoBuild.Api.Persistence;
+using IoBuild.Api.Profiles.Domain.Model.Aggregates;
+using IoBuild.Api.Profiles.Infrastructure.Cloudinary;
 using Microsoft.EntityFrameworkCore;
 
-namespace IoBuild.Api.CoreBusiness;
+namespace IoBuild.Api.Profiles.Application.Internal.CommandServices;
 
 /// <summary>
 /// Profiles application workflow (Cloudinary). Moved from CoreBusinessServices.cs

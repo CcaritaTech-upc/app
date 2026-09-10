@@ -1,4 +1,4 @@
-namespace IoBuild.Api.Persistence;
+namespace IoBuild.Api.Profiles.Domain.Model.Aggregates;
 
 /// <summary>
 /// Profiles BC aggregate: Profile.

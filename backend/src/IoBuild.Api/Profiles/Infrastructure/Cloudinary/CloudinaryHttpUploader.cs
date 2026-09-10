@@ -3,7 +3,7 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 
-namespace IoBuild.Api.CoreBusiness;
+namespace IoBuild.Api.Profiles.Infrastructure.Cloudinary;
 
 public interface ICloudinaryUploader
 {

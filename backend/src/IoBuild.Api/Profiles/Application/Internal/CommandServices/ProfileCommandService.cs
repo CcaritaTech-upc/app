@@ -1,6 +1,7 @@
 using IoBuild.Api.Persistence;
+using IoBuild.Api.Profiles.Domain.Model.Aggregates;
 
-namespace IoBuild.Api.Profiles.Application.Internal;
+namespace IoBuild.Api.Profiles.Application.Internal.CommandServices;
 
 public sealed class ProfileCommandService(IoBuildDbContext dbContext)
 {
