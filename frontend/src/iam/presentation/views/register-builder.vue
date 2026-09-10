@@ -90,12 +90,18 @@
           <!-- Photo URL -->
           <div class="mb-3">
             <label for="photoUrl" class="block mb-2">{{ $t('iam.registerBuilder.photoUrl') }}</label>
+            <input
+              type="file"
+              ref="fileInput"
+              accept="image/*"
+              style="display: none;"
+              @change="handleLocalFileUpload"
+            />
             <pv-button
               type="button"
-              :label="$t('iam.registerBuilder.uploadPhoto')"
+              :label="registerForm.photoUrl ? 'Cambiar Foto' : $t('iam.registerBuilder.uploadPhoto')"
               icon="pi pi-cloud-upload"
               @click="openUploadModal"
-              :disabled="!cloudinaryReady"
               severity="secondary"
               outlined
               class="w-full mb-2"
@@ -106,7 +112,19 @@
                 alt="Profile photo preview"
                 class="uploaded-image"
               />
-              <p class="text-sm text-gray-600 mt-2">✓ Imagen subida exitosamente</p>
+              <div class="flex justify-content-center align-items-center gap-2 mt-2">
+                <span class="text-sm text-green-600 font-medium">✓ Imagen seleccionada</span>
+                <pv-button
+                  type="button"
+                  icon="pi pi-trash"
+                  text
+                  rounded
+                  severity="danger"
+                  size="small"
+                  @click="registerForm.photoUrl = ''"
+                  title="Eliminar foto"
+                />
+              </div>
             </div>
           </div>
 
@@ -218,6 +236,7 @@ const profileStore = useProfileStore();
 const currentStep = ref(1);
 
 import { CLOUDINARY_WIDGET_URL } from "../../../shared/infrastructure/constants.js";
+import { getAvatarUploadConfig } from "../../../shared/infrastructure/cloudinary-config.js";
 
 // Cloudinary configuration
 const cloudinaryName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
@@ -240,23 +259,41 @@ const loadCloudinaryScript = () => {
   document.head.appendChild(script);
 };
 
-const openUploadModal = () => {
-  if (!cloudinaryReady.value || !window.cloudinary) return;
+const fileInput = ref(null);
 
-  window.cloudinary.openUploadWidget(
-    {
-      cloud_name: cloudinaryName,
-      upload_preset: cloudinaryPreset,
-      sources: ['local', 'url', 'camera'],
-      multiple: false,
-      resourceType: 'image'
-    },
-    (error, result) => {
-      if (!error && result && result.event === "success") {
-        registerForm.value.photoUrl = result.info.secure_url || result.info.url;
-      }
+const handleLocalFileUpload = (event) => {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    registerForm.value.photoUrl = e.target.result;
+  };
+  reader.readAsDataURL(file);
+};
+
+const openUploadModal = () => {
+  const hasCloudinary = cloudinaryName && cloudinaryName.trim() !== '' && cloudinaryPreset && cloudinaryPreset.trim() !== '';
+  if (hasCloudinary && cloudinaryReady.value && window.cloudinary) {
+    try {
+      const widgetConfig = getAvatarUploadConfig(cloudinaryName, cloudinaryPreset);
+      window.cloudinary.openUploadWidget(
+        widgetConfig,
+        (error, result) => {
+          if (!error && result && result.event === "success") {
+            registerForm.value.photoUrl = result.info.secure_url || result.info.url;
+          }
+        }
+      );
+      return;
+    } catch (err) {
+      console.warn('Cloudinary widget failed, using local file picker:', err);
     }
-  );
+  }
+
+  // Fallback seguro: abrir selector de archivo nativo sin depender de Cloudinary
+  if (fileInput.value) {
+    fileInput.value.click();
+  }
 };
 
 const registerForm = ref({

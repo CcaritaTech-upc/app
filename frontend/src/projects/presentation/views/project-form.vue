@@ -32,6 +32,7 @@ onMounted(() => {
 });
 
 import { CLOUDINARY_WIDGET_URL } from "../../../shared/infrastructure/constants.js";
+import { getProjectImageUploadConfig } from "../../../shared/infrastructure/cloudinary-config.js";
 
 const cloudinaryName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
 const cloudinaryPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
@@ -49,20 +50,41 @@ const loadCloudinaryScript = () => {
   document.head.appendChild(script);
 };
 
-const openUploadModal = () => {
-  if (!cloudinaryReady.value || !window.cloudinary) return;
+const fileInput = ref(null);
 
-  window.cloudinary.openUploadWidget(
-    {
-      cloud_name: cloudinaryName,
-      upload_preset: cloudinaryPreset
-    },
-    (error, result) => {
-      if (!error && result && result.event === "success") {
-        form.value.imageUrl = result.info.secure_url || result.info.url;
-      }
+const handleLocalFileUpload = (event) => {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    form.value.imageUrl = e.target.result;
+  };
+  reader.readAsDataURL(file);
+};
+
+const openUploadModal = () => {
+  const hasCloudinary = cloudinaryName && cloudinaryName.trim() !== '' && cloudinaryPreset && cloudinaryPreset.trim() !== '';
+  if (hasCloudinary && cloudinaryReady.value && window.cloudinary) {
+    try {
+      const widgetConfig = getProjectImageUploadConfig(cloudinaryName, cloudinaryPreset);
+      window.cloudinary.openUploadWidget(
+        widgetConfig,
+        (error, result) => {
+          if (!error && result && result.event === "success") {
+            form.value.imageUrl = result.info.secure_url || result.info.url;
+          }
+        }
+      );
+      return;
+    } catch (err) {
+      console.warn('Cloudinary widget failed, using local file picker:', err);
     }
-  );
+  }
+
+  // Fallback seguro: abrir selector de archivo local
+  if (fileInput.value) {
+    fileInput.value.click();
+  }
 };
 
 const save = async () => {
@@ -171,15 +193,32 @@ const cancel = () => {
               <i class="pi pi-image form-label__icon mr-2"></i>
               {{ t("projects.fields.image-url") }}
             </label>
+            <input
+              type="file"
+              ref="fileInput"
+              accept="image/*"
+              style="display: none;"
+              @change="handleLocalFileUpload"
+            />
             <pv-button
-                :label="t('projects.actions.upload-image')"
+                :label="form.imageUrl ? 'Cambiar Imagen' : t('projects.actions.upload-image')"
                 icon="pi pi-cloud-upload"
                 @click="openUploadModal"
-                :disabled="!cloudinaryReady"
                 class="mb-3"
             />
             <div v-if="form.imageUrl" class="mt-3">
               <img :src="form.imageUrl" alt="Uploaded image" style="max-width: 400px; border-radius: 8px;" />
+              <div class="mt-2">
+                <pv-button
+                  type="button"
+                  label="Eliminar imagen"
+                  icon="pi pi-trash"
+                  text
+                  severity="danger"
+                  size="small"
+                  @click="form.imageUrl = ''"
+                />
+              </div>
             </div>
           </div>
 
