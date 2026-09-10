@@ -22,6 +22,7 @@ export class ClientAssembler {
             projectId: entity.projectId || 0,
             projectName: entity.projectName || "",
             accountStatement: entity.accountStatement,
+            builderId: entity.builderId || 0,
             email: entity.email,
             phoneNumber: entity.phoneNumber || "",
             address: entity.address || ""
