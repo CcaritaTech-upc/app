@@ -1,7 +1,8 @@
 using System.Text.Json;
+using IoBuild.Api.Analytics.Application.Internal.QueryServices;
 using Microsoft.Extensions.Logging;
 
-namespace IoBuild.Api.Analytics;
+namespace IoBuild.Api.Analytics.Infrastructure.InfluxDB;
 
 public sealed class LiveDeviceStatusService : ILiveDeviceStatusService
 {

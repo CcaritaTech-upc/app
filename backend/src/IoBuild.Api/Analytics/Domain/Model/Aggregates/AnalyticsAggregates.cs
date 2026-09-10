@@ -1,4 +1,4 @@
-namespace IoBuild.Api.Analytics;
+namespace IoBuild.Api.Analytics.Domain.Model.Aggregates;
 
 public sealed class BuilderMetrics
 {

@@ -1,7 +1,8 @@
+using IoBuild.Api.Analytics.Domain.Model.Aggregates;
 using IoBuild.Api.Persistence;
 using Microsoft.EntityFrameworkCore;
 
-namespace IoBuild.Api.Analytics;
+namespace IoBuild.Api.Analytics.Application.Internal.CommandServices;
 
 public sealed class AnalyticsProjectionImporter
 {

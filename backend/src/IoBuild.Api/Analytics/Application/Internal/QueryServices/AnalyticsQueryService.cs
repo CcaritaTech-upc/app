@@ -1,8 +1,10 @@
+using IoBuild.Api.Analytics.Domain.Model.Aggregates;
+using IoBuild.Api.Analytics.Domain.Model.Queries;
 using IoBuild.Api.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
-namespace IoBuild.Api.Analytics;
+namespace IoBuild.Api.Analytics.Application.Internal.QueryServices;
 
 public interface ILiveEnergyService
 {

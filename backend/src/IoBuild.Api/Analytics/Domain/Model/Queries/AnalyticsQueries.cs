@@ -1,4 +1,4 @@
-namespace IoBuild.Api.Analytics;
+namespace IoBuild.Api.Analytics.Domain.Model.Queries;
 
 public sealed record GetBuilderDashboardQuery(int UserId);
 public sealed record GetOwnerDashboardQuery(int UserId);
