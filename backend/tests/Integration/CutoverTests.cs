@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using IoBuild.Api.Shared.Application.Cutover;
 using IoBuild.Api.Persistence;
+using IoBuild.Api.Publishing.Domain.Model.Aggregates;
 using Microsoft.EntityFrameworkCore;
 
 namespace IoBuild.Integration.Tests;

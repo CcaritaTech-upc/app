@@ -5,6 +5,13 @@ using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 using IoBuild.Api.CoreBusiness;
 using IoBuild.Api.Persistence;
+using IoBuild.Api.Profiles.Application.Internal.CommandServices;
+using IoBuild.Api.Profiles.Domain.Model.Aggregates;
+using IoBuild.Api.Profiles.Infrastructure.Cloudinary;
+using IoBuild.Api.Subscriptions.Application.Internal.CommandServices;
+using IoBuild.Api.Subscriptions.Domain.Model.Aggregates;
+using IoBuild.Api.Subscriptions.Domain.Model.Entities;
+using IoBuild.Api.Subscriptions.Infrastructure.Stripe;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
@@ -258,8 +265,8 @@ public sealed class CoreBusinessWorkflowTests
         Assert.Equal(HttpStatusCode.OK, invoices.StatusCode);
     }
 
-    private static string Token(int id, string email, string role) => new IoBuild.Api.Iam.JwtTokenIssuer("iobuild-development-secret-must-be-replaced-before-production")
-        .Issue(new IamUser { Id = id, Email = email, Role = role });
+    private static string Token(int id, string email, string role) => new IoBuild.Api.IAM.Infrastructure.Tokens.JwtTokenIssuer("iobuild-development-secret-must-be-replaced-before-production")
+        .Issue(new IoBuild.Api.IAM.Domain.Model.Aggregates.IamUser { Id = id, Email = email, Role = role });
 
     private static Task<HttpResponseMessage> SendAuthorizedAsync(HttpClient client, HttpMethod method, string path, string token, string? json = null)
     {

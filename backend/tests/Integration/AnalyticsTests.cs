@@ -1,4 +1,9 @@
 using IoBuild.Api.Analytics;
+using IoBuild.Api.Analytics.Application.Internal.CommandServices;
+using IoBuild.Api.Analytics.Application.Internal.QueryServices;
+using IoBuild.Api.Analytics.Domain.Model.Aggregates;
+using IoBuild.Api.Analytics.Domain.Model.Queries;
+using IoBuild.Api.Analytics.Infrastructure.InfluxDB;
 using IoBuild.Api.Persistence;
 using Microsoft.EntityFrameworkCore;
 

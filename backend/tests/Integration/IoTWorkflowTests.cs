@@ -1,4 +1,9 @@
 using IoBuild.Api.Devices;
+using IoBuild.Api.Devices.Application.Internal.CommandServices;
+using IoBuild.Api.Devices.Domain.Model.Aggregates;
+using IoBuild.Api.Devices.Domain.Model.Entities;
+using IoBuild.Api.Devices.Infrastructure.InfluxDB;
+using IoBuild.Api.Devices.Infrastructure.Mqtt;
 using IoBuild.Api.Persistence;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
