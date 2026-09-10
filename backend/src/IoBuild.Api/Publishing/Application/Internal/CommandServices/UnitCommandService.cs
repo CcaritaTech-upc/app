@@ -66,6 +66,40 @@ public class UnitCommandService : IUnitCommandService
             _dbContext.UnitOwnerProjections.Remove(existingProjection);
         }
 
+        // Synchronize with UnitProjections
+        var existingUnitProj = await _dbContext.UnitProjections
+            .FirstOrDefaultAsync(p => p.UnitId == unit.Id, ct);
+        if (existingUnitProj is not null)
+        {
+            existingUnitProj.OwnerUserId = resolvedOwnerId;
+            existingUnitProj.OwnerEmail = string.IsNullOrWhiteSpace(command.OwnerEmail) ? null : command.OwnerEmail.Trim();
+            existingUnitProj.Status = unit.Status;
+            existingUnitProj.LastEventAt = DateTime.UtcNow;
+        }
+
+        // Synchronize with Clients in this project
+        if (!string.IsNullOrWhiteSpace(command.OwnerEmail))
+        {
+            var normalized = command.OwnerEmail.Trim().ToLowerInvariant();
+            var matchingClient = await _dbContext.Clients
+                .FirstOrDefaultAsync(c => c.ProjectId == unit.ProjectId && c.Email.ToLower() == normalized, ct);
+            if (matchingClient is not null)
+            {
+                matchingClient.UnitId = unit.Id;
+                matchingClient.UnitNumber = unit.UnitNumber;
+            }
+        }
+        else
+        {
+            var prevClient = await _dbContext.Clients
+                .FirstOrDefaultAsync(c => c.ProjectId == unit.ProjectId && c.UnitId == unit.Id, ct);
+            if (prevClient is not null)
+            {
+                prevClient.UnitId = null;
+                prevClient.UnitNumber = null;
+            }
+        }
+
         await _dbContext.SaveChangesAsync(ct);
     }
 }

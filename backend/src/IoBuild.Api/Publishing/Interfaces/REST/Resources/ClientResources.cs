@@ -1,5 +1,38 @@
 namespace IoBuild.Api.Publishing.Interfaces.REST.Resources;
 
-public record ClientResource(int Id, string FullName, string ProjectName, string AccountStatement, int BuilderId, int ProjectId);
-public record CreateClientResource(string FullName, string ProjectName, string AccountStatement, int BuilderId, int ProjectId);
-public record UpdateClientResource(string FullName, string ProjectName, string AccountStatement, int BuilderId, int ProjectId);
+public record ClientResource(
+    int Id,
+    string FullName,
+    string ProjectName,
+    string AccountStatement,
+    int BuilderId,
+    int ProjectId,
+    string? Email = null,
+    string? PhoneNumber = null,
+    string? Address = null,
+    int? UnitId = null,
+    string? UnitNumber = null);
+
+public record CreateClientResource(
+    string FullName,
+    string ProjectName,
+    string AccountStatement,
+    int BuilderId,
+    int ProjectId,
+    string? Email = null,
+    string? PhoneNumber = null,
+    string? Address = null,
+    int? UnitId = null,
+    string? UnitNumber = null);
+
+public record UpdateClientResource(
+    string FullName,
+    string ProjectName,
+    string AccountStatement,
+    int BuilderId,
+    int ProjectId,
+    string? Email = null,
+    string? PhoneNumber = null,
+    string? Address = null,
+    int? UnitId = null,
+    string? UnitNumber = null);

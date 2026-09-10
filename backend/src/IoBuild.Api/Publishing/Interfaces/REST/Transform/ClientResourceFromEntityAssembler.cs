@@ -13,6 +13,11 @@ public static class ClientResourceFromEntityAssembler
             entity.ProjectName,
             entity.AccountStatement,
             entity.BuilderId,
-            entity.ProjectId);
+            entity.ProjectId,
+            entity.Email,
+            entity.PhoneNumber,
+            entity.Address,
+            entity.UnitId,
+            entity.UnitNumber);
     }
 }

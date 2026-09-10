@@ -98,6 +98,45 @@ public sealed class PublishingAndSubscriptionsDddTests
 
     [Fact]
     [Trait("Category", "DDD")]
+    public async Task ClientCommandService_links_unit_and_owner_projection()
+    {
+        await using var db = CreateDb();
+        var unit = new Unit(1, "101", null, 1, "101");
+        db.Units.Add(unit);
+        var user = new IamUser { Email = "owner@domain.com", PasswordHash = "hash", Role = "Owner" };
+        db.IamUsers.Add(user);
+        await db.SaveChangesAsync();
+
+        var repo = new ClientRepository(db);
+        var commandService = new ClientCommandService(repo, db);
+        var queryService = new ClientQueryService(repo);
+
+        var clientId = await commandService.Handle(new CreateClientCommand(
+            "Jane Doe", "Tower Alpha", "Paid", 10, 1,
+            Email: "owner@domain.com",
+            PhoneNumber: "+51999888777",
+            Address: "Av. Central 123",
+            UnitId: unit.Id));
+
+        var client = await queryService.Handle(new GetClientByIdQuery(clientId));
+        Assert.NotNull(client);
+        Assert.Equal("Jane Doe", client!.FullName);
+        Assert.Equal("owner@domain.com", client.Email);
+        Assert.Equal(unit.Id, client.UnitId);
+        Assert.Equal("101", client.UnitNumber);
+
+        var updatedUnit = await db.Units.FindAsync(unit.Id);
+        Assert.Equal("occupied", updatedUnit!.Status);
+        Assert.Equal("owner@domain.com", updatedUnit.OwnerEmail);
+        Assert.Equal(user.Id, updatedUnit.OwnerId);
+
+        var projection = await db.UnitOwnerProjections.FirstOrDefaultAsync(p => p.UnitId == unit.Id);
+        Assert.NotNull(projection);
+        Assert.Equal(user.Id, projection!.OwnerUserId);
+    }
+
+    [Fact]
+    [Trait("Category", "DDD")]
     public async Task PlanCommandService_creates_and_queries_plans()
     {
         await using var db = CreateDb();

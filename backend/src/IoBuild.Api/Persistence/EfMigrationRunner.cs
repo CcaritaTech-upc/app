@@ -60,6 +60,40 @@ public sealed class EfMigrationRunner(IoBuildDbContext dbContext) : IMigrationRu
             {
                 await dbContext.Database.ExecuteSqlRawAsync("ALTER TABLE profiles MODIFY COLUMN CloudinaryReference LONGTEXT NULL;", cancellationToken);
             }
+
+            var existingClientColumns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (shouldClose) await connection.OpenAsync(cancellationToken);
+            try
+            {
+                using var cmd = connection.CreateCommand();
+                cmd.CommandText = "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'clients';";
+                using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
+                while (await reader.ReadAsync(cancellationToken))
+                {
+                    existingClientColumns.Add(reader.GetString(0));
+                }
+            }
+            finally
+            {
+                if (shouldClose) await connection.CloseAsync();
+            }
+
+            var clientColumnsToAdd = new (string Name, string Type)[]
+            {
+                ("Email", "VARCHAR(150) NULL"),
+                ("PhoneNumber", "VARCHAR(50) NULL"),
+                ("Address", "VARCHAR(255) NULL"),
+                ("UnitId", "INT NULL"),
+                ("UnitNumber", "VARCHAR(50) NULL")
+            };
+
+            foreach (var (colName, colType) in clientColumnsToAdd)
+            {
+                if (!existingClientColumns.Contains(colName))
+                {
+                    await dbContext.Database.ExecuteSqlRawAsync($"ALTER TABLE clients ADD COLUMN {colName} {colType};", cancellationToken);
+                }
+            }
         }
     }
 }

@@ -211,7 +211,17 @@ public static class PublishingEndpoints
 
         clients.MapPost("", async (CreateClientResource resource, IClientCommandService commandService, IClientQueryService queryService, CancellationToken ct) =>
         {
-            var command = new CreateClientCommand(resource.FullName, resource.ProjectName, resource.AccountStatement, resource.BuilderId, resource.ProjectId);
+            var command = new CreateClientCommand(
+                resource.FullName,
+                resource.ProjectName,
+                resource.AccountStatement,
+                resource.BuilderId,
+                resource.ProjectId,
+                resource.Email,
+                resource.PhoneNumber,
+                resource.Address,
+                resource.UnitId,
+                resource.UnitNumber);
             var clientId = await commandService.Handle(command, ct);
             var created = await queryService.Handle(new GetClientByIdQuery(clientId), ct);
             return created is null ? Results.Problem(statusCode: 500) : Results.Created($"/api/v1/clients/{clientId}", ClientResourceFromEntityAssembler.ToResourceFromEntity(created));
@@ -221,7 +231,18 @@ public static class PublishingEndpoints
         {
             try
             {
-                var command = new UpdateClientCommand(id, resource.FullName, resource.ProjectName, resource.AccountStatement, resource.BuilderId, resource.ProjectId);
+                var command = new UpdateClientCommand(
+                    id,
+                    resource.FullName,
+                    resource.ProjectName,
+                    resource.AccountStatement,
+                    resource.BuilderId,
+                    resource.ProjectId,
+                    resource.Email,
+                    resource.PhoneNumber,
+                    resource.Address,
+                    resource.UnitId,
+                    resource.UnitNumber);
                 await commandService.Handle(command, ct);
                 return Results.NoContent();
             }

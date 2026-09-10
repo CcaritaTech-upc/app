@@ -40,6 +40,38 @@ public sealed class IamWorkflowTests
 
     [Fact]
     [Trait("Category", "IAM")]
+    public async Task Registration_auto_links_assigned_units_and_projections()
+    {
+        await using var db = CreateDb();
+        var unit = new IoBuild.Api.Publishing.Domain.Model.Aggregates.Unit(1, "204", null, 2, "204");
+        unit.AssignOwner("owner.auto@example.com", null);
+        db.Units.Add(unit);
+        db.UnitProjections.Add(new IoBuild.Api.Analytics.Domain.Model.Aggregates.UnitProjection
+        {
+            UnitId = unit.Id,
+            ProjectId = 1,
+            BuilderUserId = 10,
+            Status = "occupied",
+            OwnerEmail = "owner.auto@example.com"
+        });
+        await db.SaveChangesAsync();
+
+        var service = CreateIamService(db);
+        await service.RegisterAsync(new RegisterUser("owner.auto@example.com", "secret123", "Owner"));
+
+        var user = await db.IamUsers.SingleAsync(u => u.Email == "owner.auto@example.com");
+        var updatedUnit = await db.Units.SingleAsync(u => u.Id == unit.Id);
+        Assert.Equal(user.Id, updatedUnit.OwnerId);
+
+        var ownerProj = await db.UnitOwnerProjections.SingleAsync(p => p.UnitId == unit.Id);
+        Assert.Equal(user.Id, ownerProj.OwnerUserId);
+
+        var unitProj = await db.UnitProjections.SingleAsync(p => p.UnitId == unit.Id);
+        Assert.Equal(user.Id, unitProj.OwnerUserId);
+    }
+
+    [Fact]
+    [Trait("Category", "IAM")]
     public async Task Dispatch_leases_in_order_and_dead_letters_after_retry_limit()
     {
         await using var db = CreateDb();

@@ -16,9 +16,16 @@ public static class ClientConfiguration
             entity.Property(client => client.AccountStatement).HasMaxLength(50).IsRequired();
             entity.Property(client => client.BuilderId).IsRequired();
             entity.Property(client => client.ProjectId).IsRequired();
+            entity.Property(client => client.Email).HasMaxLength(150);
+            entity.Property(client => client.PhoneNumber).HasMaxLength(50);
+            entity.Property(client => client.Address).HasMaxLength(255);
+            entity.Property(client => client.UnitId);
+            entity.Property(client => client.UnitNumber).HasMaxLength(50);
 
             entity.HasIndex(client => client.BuilderId);
             entity.HasIndex(client => client.ProjectId);
+            entity.HasIndex(client => client.Email);
+            entity.HasIndex(client => client.UnitId);
         });
     }
 }
