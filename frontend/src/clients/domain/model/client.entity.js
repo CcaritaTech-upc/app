@@ -7,7 +7,9 @@ export class Client {
                     accountStatement = "Active",
                     email = "",
                     phoneNumber = "",
-                    address = ""
+                    address = "",
+                    unitId = null,
+                    unitNumber = ""
                 }) {
         this.id = id;
         this.fullName = fullName;
@@ -17,6 +19,8 @@ export class Client {
         this.email = email;
         this.phoneNumber = phoneNumber;
         this.address = address;
+        this.unitId = unitId;
+        this.unitNumber = unitNumber;
     }
 }
 

@@ -103,13 +103,28 @@ const toggleMenu = (event, client) => {
 
       <pv-column field="fullName" :header="t('clients.fields.fullName')" sortable>
         <template #body="slotProps">
-          <span class="font-semibold">{{ slotProps.data.fullName }}</span>
+          <div class="flex flex-column">
+            <span class="font-semibold">{{ slotProps.data.fullName }}</span>
+            <span v-if="slotProps.data.email" class="text-xs text-gray-500">{{ slotProps.data.email }}</span>
+          </div>
         </template>
       </pv-column>
 
       <pv-column field="projectName" :header="t('clients.fields.project')" sortable>
         <template #body="slotProps">
           <span>{{ slotProps.data.projectName || t('projects.messages.no-projects') }}</span>
+        </template>
+      </pv-column>
+
+      <pv-column field="unitNumber" :header="t('clients.fields.unit')" sortable>
+        <template #body="slotProps">
+          <pv-tag
+            v-if="slotProps.data.unitNumber"
+            :value="slotProps.data.unitNumber"
+            severity="info"
+            class="font-mono text-xs"
+          />
+          <span v-else class="text-xs text-gray-400 italic">Sin asignar</span>
         </template>
       </pv-column>
 

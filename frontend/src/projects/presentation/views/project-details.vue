@@ -8,6 +8,7 @@ import { useAnalyticsStore } from "../../../analytics/application/analytics.stor
 import DefineStructureDialog from "../components/define-structure-dialog.vue";
 import { ProjectApi } from "../../infrastructure/project-api.js";
 import { ProjectAssembler } from "../../infrastructure/project.assembler.js";
+import { ClientApi } from "../../../clients/infrastructure/client-api.js";
 
 const { t } = useI18n();
 const route = useRoute();
@@ -16,8 +17,10 @@ const confirm = useConfirm();
 const store = useProjectStore();
 const analyticsStore = useAnalyticsStore();
 const projectApi = new ProjectApi();
+const clientApi = new ClientApi();
 const project = ref(null);
 const units = ref([]);
+const projectClients = ref([]);
 const unitsError = ref(null);
 const showStructureDialog = ref(false);
 const editMode = ref(false);
@@ -37,6 +40,15 @@ async function loadUnits() {
   }
 }
 
+async function loadProjectClients() {
+  try {
+    const res = await clientApi.getClientsByProjectId(route.params.id);
+    projectClients.value = Array.isArray(res?.data) ? res.data : [];
+  } catch (error) {
+    console.error("Error loading project clients:", error);
+  }
+}
+
 onMounted(async () => {
   await store.fetchProjects();
   project.value = store.getProjectById(route.params.id);
@@ -50,7 +62,7 @@ onMounted(async () => {
       console.warn("Could not load project directly:", e);
     }
   }
-  await loadUnits();
+  await Promise.all([loadUnits(), loadProjectClients()]);
   if (route.query.openStructure === 'true' && !hasStructure.value) {
     showStructureDialog.value = true;
   }
@@ -325,6 +337,7 @@ async function clearUnitOwner(unit) {
                       v-model="pendingOwnerEmails[unit.id]"
                       placeholder="owner@example.com"
                       type="email"
+                      list="project-clients-list"
                       class="unit-card__input"
                   />
                   <pv-button
@@ -372,6 +385,17 @@ async function clearUnitOwner(unit) {
             </template>
           </div>
         </section>
+
+        <!-- Datalist providing suggestions from existing clients of this project -->
+        <datalist id="project-clients-list">
+          <option
+              v-for="c in projectClients"
+              :key="c.id"
+              :value="c.email"
+          >
+            {{ c.fullName }} ({{ c.email }})
+          </option>
+        </datalist>
       </div>
 
       <!-- Fallback while units load -->

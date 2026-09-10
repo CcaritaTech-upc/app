@@ -18,6 +18,8 @@ const emit = defineEmits(['update:visible', 'save']);
 const projectsFacade = new ProjectsFacade();
 const localVisible = ref(props.visible);
 const projects = ref([]);
+const units = ref([]);
+const loadingUnits = ref(false);
 const formData = ref({
   id: null,
   fullName: '',
@@ -26,8 +28,26 @@ const formData = ref({
   address: '',
   projectId: 0,
   projectName: '',
-  accountStatement: 'Active'
+  accountStatement: 'Active',
+  unitId: null,
+  unitNumber: ''
 });
+
+async function loadUnitsForProject(projectId) {
+  if (!projectId) {
+    units.value = [];
+    return;
+  }
+  loadingUnits.value = true;
+  try {
+    units.value = await projectsFacade.getUnitsByProject(projectId);
+  } catch (e) {
+    console.error('Error fetching units:', e);
+    units.value = [];
+  } finally {
+    loadingUnits.value = false;
+  }
+}
 
 // Load projects on component mount
 onMounted(async () => {
@@ -43,10 +63,30 @@ const projectOptions = computed(() => {
   }));
 });
 
-watch(() => props.visible, (newVal) => {
+// Computed property to format units for dropdown
+const unitOptions = computed(() => {
+  const list = [
+    { label: 'Sin asignar / None', value: null }
+  ];
+  units.value.forEach(u => {
+    const isThisClient = formData.value.unitId === u.id || (u.ownerEmail && formData.value.email && u.ownerEmail.toLowerCase() === formData.value.email.toLowerCase());
+    const isOccupied = !!u.ownerEmail && !isThisClient;
+    const statusText = isThisClient ? '(Asignada a este cliente)' : (isOccupied ? `(Ocupada - ${u.ownerEmail})` : '(Disponible)');
+    list.push({
+      label: `Unidad ${u.unitNumber || u.roomNumber} - Piso ${u.floor} ${statusText}`,
+      value: u.id
+    });
+  });
+  return list;
+});
+
+watch(() => props.visible, async (newVal) => {
   localVisible.value = newVal;
   if (newVal && props.client) {
     formData.value = { ...props.client };
+    if (props.client.projectId) {
+      await loadUnitsForProject(props.client.projectId);
+    }
   }
 });
 
@@ -55,11 +95,27 @@ watch(localVisible, (newVal) => {
 });
 
 // Watch for project selection to update projectName
-watch(() => formData.value.projectId, (newProjectId) => {
+watch(() => formData.value.projectId, async (newProjectId, oldProjectId) => {
   if (newProjectId) {
     formData.value.projectName = projectsFacade.getProjectNameById(newProjectId);
+    if (oldProjectId && newProjectId !== oldProjectId) {
+      formData.value.unitId = null;
+      formData.value.unitNumber = '';
+      await loadUnitsForProject(newProjectId);
+    }
   } else {
     formData.value.projectName = '';
+    units.value = [];
+  }
+});
+
+// Watch unit selection to update unitNumber
+watch(() => formData.value.unitId, (newUnitId) => {
+  if (newUnitId) {
+    const selected = units.value.find(u => u.id === newUnitId);
+    formData.value.unitNumber = selected ? (selected.unitNumber || selected.roomNumber) : '';
+  } else {
+    formData.value.unitNumber = '';
   }
 });
 
@@ -137,6 +193,24 @@ const accountStatementOptions = [
           class="w-full"
           :disabled="projectOptions.length === 0"
         />
+      </div>
+
+      <div class="col-12 mb-3">
+        <label for="unitId" class="block mb-2 font-semibold">Unidad / Departamento asignado</label>
+        <pv-select
+          id="unitId"
+          v-model="formData.unitId"
+          :options="unitOptions"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Seleccionar unidad (opcional)"
+          class="w-full"
+          :loading="loadingUnits"
+          :disabled="!formData.projectId || unitOptions.length <= 1"
+        />
+        <small v-if="formData.projectId && unitOptions.length <= 1 && !loadingUnits" class="text-gray-500 block mt-1">
+          Este proyecto no tiene unidades configuradas todavía.
+        </small>
       </div>
 
       <div class="col-12">

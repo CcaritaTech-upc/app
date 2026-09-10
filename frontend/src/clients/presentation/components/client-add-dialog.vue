@@ -15,13 +15,17 @@ const emit = defineEmits(['update:visible', 'save']);
 const projectsFacade = new ProjectsFacade();
 const localVisible = ref(props.visible);
 const projects = ref([]);
+const units = ref([]);
+const loadingUnits = ref(false);
 const formData = ref(new Client({
   fullName: '',
   email: '',
   phoneNumber: '',
   address: '',
   projectName: '',
-  accountStatement: 'Active'
+  accountStatement: 'Active',
+  unitId: null,
+  unitNumber: ''
 }));
 
 // Load projects on component mount
@@ -38,6 +42,22 @@ const projectOptions = computed(() => {
   }));
 });
 
+// Computed property to format units for dropdown
+const unitOptions = computed(() => {
+  const list = [
+    { label: 'Sin asignar / None', value: null }
+  ];
+  units.value.forEach(u => {
+    const isOccupied = !!u.ownerEmail;
+    const statusText = isOccupied ? `(Ocupada - ${u.ownerEmail})` : '(Disponible)';
+    list.push({
+      label: `Unidad ${u.unitNumber || u.roomNumber} - Piso ${u.floor} ${statusText}`,
+      value: u.id
+    });
+  });
+  return list;
+});
+
 watch(() => props.visible, (newVal) => {
   localVisible.value = newVal;
   if (newVal) {
@@ -49,8 +69,11 @@ watch(() => props.visible, (newVal) => {
       address: '',
       projectId: 0,
       projectName: '',
-      accountStatement: 'Active'
+      accountStatement: 'Active',
+      unitId: null,
+      unitNumber: ''
     });
+    units.value = [];
   }
 });
 
@@ -58,12 +81,34 @@ watch(localVisible, (newVal) => {
   emit('update:visible', newVal);
 });
 
-// Watch for project selection to update projectName
-watch(() => formData.value.projectId, (newProjectId) => {
+// Watch for project selection to update projectName and fetch units
+watch(() => formData.value.projectId, async (newProjectId) => {
+  formData.value.unitId = null;
+  formData.value.unitNumber = '';
   if (newProjectId) {
     formData.value.projectName = projectsFacade.getProjectNameById(newProjectId);
+    loadingUnits.value = true;
+    try {
+      units.value = await projectsFacade.getUnitsByProject(newProjectId);
+    } catch (e) {
+      console.error('Error fetching units for project:', e);
+      units.value = [];
+    } finally {
+      loadingUnits.value = false;
+    }
   } else {
     formData.value.projectName = '';
+    units.value = [];
+  }
+});
+
+// Watch unit selection to store unitNumber
+watch(() => formData.value.unitId, (newUnitId) => {
+  if (newUnitId) {
+    const selected = units.value.find(u => u.id === newUnitId);
+    formData.value.unitNumber = selected ? (selected.unitNumber || selected.roomNumber) : '';
+  } else {
+    formData.value.unitNumber = '';
   }
 });
 
@@ -153,6 +198,24 @@ const handleCancel = () => {
           class="w-full"
           :disabled="projectOptions.length === 0"
         />
+      </div>
+
+      <div class="col-12 mb-3">
+        <label for="unitId" class="block mb-2 font-semibold">Unidad / Departamento asignado</label>
+        <pv-select
+          id="unitId"
+          v-model="formData.unitId"
+          :options="unitOptions"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Seleccionar unidad (opcional)"
+          class="w-full"
+          :loading="loadingUnits"
+          :disabled="!formData.projectId || unitOptions.length <= 1"
+        />
+        <small v-if="formData.projectId && unitOptions.length <= 1 && !loadingUnits" class="text-gray-500 block mt-1">
+          Este proyecto no tiene unidades configuradas todavía.
+        </small>
       </div>
     </div>
 

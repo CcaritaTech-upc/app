@@ -180,6 +180,18 @@ const handleDelete = () => {
               <p class="text-lg text-gray-900">{{ client.projectName || t('clients.messages.noProject') }}</p>
             </div>
           </div>
+
+          <div class="col-12 md:col-6">
+            <div class="mb-4">
+              <label class="block font-semibold text-gray-700 mb-2">
+                <i class="pi pi-home mr-2"></i>{{ t('clients.fields.unit') }}
+              </label>
+              <p class="text-lg text-gray-900">
+                <pv-tag v-if="client.unitNumber" :value="`Unidad ${client.unitNumber}`" severity="info" />
+                <span v-else class="text-gray-400 italic">Sin asignar</span>
+              </p>
+            </div>
+          </div>
         </div>
 
         <pv-divider />

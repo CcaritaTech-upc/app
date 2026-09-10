@@ -27,6 +27,10 @@ export class ClientApi extends BaseApi {
         return { data: allClients };
     }
 
+    async getClientsByProjectId(projectId) {
+        return this.http.get(clientsEndpointPath, { params: { projectId } });
+    }
+
     getClientById(id) {
         return this.#clientsEndpoint.getById(id);
     }

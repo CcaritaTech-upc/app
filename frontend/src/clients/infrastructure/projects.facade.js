@@ -3,12 +3,15 @@
  * This facade provides access to projects functionality following ACL pattern
  */
 import { useProjectStore } from "../../projects/application/project.store.js";
+import { ProjectApi } from "../../projects/infrastructure/project-api.js";
 
 export class ProjectsFacade {
     #projectStore;
+    #projectApi;
 
     constructor() {
         this.#projectStore = useProjectStore();
+        this.#projectApi = new ProjectApi();
     }
 
     /**
@@ -55,6 +58,16 @@ export class ProjectsFacade {
      */
     areProjectsLoaded() {
         return this.#projectStore.projectsLoaded;
+    }
+
+    /**
+     * Get units of a project
+     * @param {number} projectId
+     * @returns {Promise<Array>}
+     */
+    async getUnitsByProject(projectId) {
+        if (!projectId) return [];
+        return await this.#projectApi.getUnitsByProject(projectId);
     }
 }
 

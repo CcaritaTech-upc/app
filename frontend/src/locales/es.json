@@ -183,7 +183,8 @@
       "accountStatement": "Estado de Cuenta",
       "email": "Correo Electrónico",
       "phoneNumber": "Número de Teléfono",
-      "address": "Dirección"
+      "address": "Dirección",
+      "unit": "Unidad / Departamento"
     },
     "status": {
       "active": "Activo",

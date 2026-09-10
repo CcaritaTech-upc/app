@@ -25,7 +25,9 @@ export class ClientAssembler {
             builderId: entity.builderId || 0,
             email: entity.email,
             phoneNumber: entity.phoneNumber || "",
-            address: entity.address || ""
+            address: entity.address || "",
+            unitId: entity.unitId || null,
+            unitNumber: entity.unitNumber || null
         };
     }
 }
