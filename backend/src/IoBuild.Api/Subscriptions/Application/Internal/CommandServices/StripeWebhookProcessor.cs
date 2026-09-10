@@ -2,9 +2,11 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using IoBuild.Api.Persistence;
+using IoBuild.Api.Subscriptions.Domain.Model.Aggregates;
+using IoBuild.Api.Subscriptions.Domain.Model.Entities;
 using Microsoft.EntityFrameworkCore;
 
-namespace IoBuild.Api.CoreBusiness;
+namespace IoBuild.Api.Subscriptions.Application.Internal.CommandServices;
 
 public sealed record StripeWebhookRequest(string EventId, string EventType, string Payload, string Signature);
 

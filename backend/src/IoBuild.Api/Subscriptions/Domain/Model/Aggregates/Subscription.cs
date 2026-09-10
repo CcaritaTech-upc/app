@@ -1,4 +1,4 @@
-namespace IoBuild.Api.Persistence;
+namespace IoBuild.Api.Subscriptions.Domain.Model.Aggregates;
 
 /// <summary>
 /// Subscriptions BC aggregate.

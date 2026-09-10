@@ -1,4 +1,4 @@
-namespace IoBuild.Api.Persistence;
+namespace IoBuild.Api.Subscriptions.Domain.Model.Entities;
 
 public sealed class SubscriptionWebhook
 {
