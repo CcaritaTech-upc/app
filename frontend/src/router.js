@@ -52,8 +52,7 @@ const routes = [
     },
     {
         path: '/projects',
-        name: 'projects',
-        children:  projectsRoutes
+        children: projectsRoutes
     },
     {
         path: '/clients',

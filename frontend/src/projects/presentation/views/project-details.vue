@@ -7,6 +7,7 @@ import useProjectStore from "../../application/project.store.js";
 import { useAnalyticsStore } from "../../../analytics/application/analytics.store.js";
 import DefineStructureDialog from "../components/define-structure-dialog.vue";
 import { ProjectApi } from "../../infrastructure/project-api.js";
+import { ProjectAssembler } from "../../infrastructure/project.assembler.js";
 
 const { t } = useI18n();
 const route = useRoute();
@@ -28,7 +29,8 @@ const imageBroken = ref(false);
 async function loadUnits() {
   unitsError.value = null;
   try {
-    units.value = await projectApi.getUnitsByProject(route.params.id);
+    const data = await projectApi.getUnitsByProject(route.params.id);
+    units.value = Array.isArray(data) ? data : [];
   } catch (error) {
     console.error("Error loading units:", error);
     unitsError.value = error;
@@ -38,13 +40,24 @@ async function loadUnits() {
 onMounted(async () => {
   await store.fetchProjects();
   project.value = store.getProjectById(route.params.id);
+  if (!project.value) {
+    try {
+      const res = await projectApi.getProjectById(route.params.id);
+      if (res?.data) {
+        project.value = ProjectAssembler.toEntityFromResource(res.data);
+      }
+    } catch (e) {
+      console.warn("Could not load project directly:", e);
+    }
+  }
   await loadUnits();
+  if (route.query.openStructure === 'true' && !hasStructure.value) {
+    showStructureDialog.value = true;
+  }
 });
 
-// A project has a structure once it actually has units. Deriving this from the
-// fetched units (rather than project.totalUnits) keeps the check robust even if
-// the stored totals lag behind for legacy projects.
-const hasStructure = computed(() => units.value.length > 0);
+// A project has a structure once it actually has units or its structureDefined flag is set.
+const hasStructure = computed(() => units.value.length > 0 || Boolean(project.value?.structureDefined));
 
 // Group the project's units by floor for the structure display.
 const structureGrid = computed(() => {
@@ -65,6 +78,13 @@ const structureGrid = computed(() => {
 function occupiedCount(unitList) {
   return unitList.filter((u) => u.ownerEmail).length;
 }
+
+const currentOccupancyRate = computed(() => {
+  const total = units.value.length > 0 ? units.value.length : (project.value?.totalUnits || 0);
+  if (total <= 0) return 0;
+  const occupied = units.value.length > 0 ? occupiedCount(units.value) : (project.value?.occupiedUnits || 0);
+  return Math.min(100, Math.round((occupied / total) * 100));
+});
 
 // Human-readable created date (raw value is an ISO timestamp).
 function formatDate(iso) {
@@ -99,7 +119,16 @@ async function onStructureDefined() {
   // fresh data instead of showing a stale 0 from before structure was defined.
   analyticsStore.invalidateBuilderDashboard();
   await store.fetchProjects();
-  project.value = store.getProjectById(route.params.id);
+  try {
+    const res = await projectApi.getProjectById(route.params.id);
+    if (res?.data) {
+      project.value = ProjectAssembler.toEntityFromResource(res.data);
+    } else {
+      project.value = store.getProjectById(route.params.id);
+    }
+  } catch (_) {
+    project.value = store.getProjectById(route.params.id);
+  }
   await loadUnits();
 }
 
@@ -113,7 +142,16 @@ async function saveUnitOwner(unit) {
     if (idx !== -1) units.value[idx] = { ...units.value[idx], ...updated };
     delete pendingOwnerEmails.value[unit.id];
     await store.fetchProjects();
-    project.value = store.getProjectById(route.params.id);
+    try {
+      const res = await projectApi.getProjectById(route.params.id);
+      if (res?.data) {
+        project.value = ProjectAssembler.toEntityFromResource(res.data);
+      } else {
+        project.value = store.getProjectById(route.params.id);
+      }
+    } catch (_) {
+      project.value = store.getProjectById(route.params.id);
+    }
   } catch (error) {
     console.error("Error assigning unit owner:", error);
   } finally {
@@ -131,7 +169,16 @@ async function clearUnitOwner(unit) {
     // Force ownerEmail to null in case the API omits null fields from the resource.
     if (idx !== -1) units.value[idx] = { ...units.value[idx], ...updated, ownerEmail: null };
     await store.fetchProjects();
-    project.value = store.getProjectById(route.params.id);
+    try {
+      const res = await projectApi.getProjectById(route.params.id);
+      if (res?.data) {
+        project.value = ProjectAssembler.toEntityFromResource(res.data);
+      } else {
+        project.value = store.getProjectById(route.params.id);
+      }
+    } catch (_) {
+      project.value = store.getProjectById(route.params.id);
+    }
   } catch (error) {
     console.error("Error clearing unit owner:", error);
   } finally {
@@ -142,9 +189,7 @@ async function clearUnitOwner(unit) {
 </script>
 
 <template>
-  <!-- Single root element: <transition mode="out-in"> in the layout requires one
-       root node, otherwise leaving this view leaves the next route blank. -->
-  <div>
+  <div class="project-details-wrapper">
   <div v-if="project" class="project-details-root p-6 bg-white">
     <div class="flex justify-content-between align-items-center mb-6">
       <pv-button
@@ -185,12 +230,26 @@ async function clearUnitOwner(unit) {
 
         <div class="project-hero__stats">
           <div class="stat">
-            <span class="stat__value">{{ project.totalUnits }}</span>
+            <span class="stat__value">{{ units.length > 0 ? units.length : project.totalUnits }}</span>
             <span class="stat__label">{{ t("projects.fields.total-units") }}</span>
           </div>
           <div class="stat">
-            <span class="stat__value">{{ project.occupiedUnits }}</span>
+            <span class="stat__value">{{ units.length > 0 ? occupiedCount(units) : project.occupiedUnits }}</span>
             <span class="stat__label">{{ t("projects.fields.occupied-units") }}</span>
+          </div>
+        </div>
+
+        <!-- Occupancy Progress Bar in Details -->
+        <div class="occupancy-bar-wrap">
+          <div class="occupancy-bar-label">
+            <span>{{ t("projects.fields.occupancy-rate") || "Tasa de Ocupación" }}</span>
+            <span class="font-bold text-emerald-600">{{ currentOccupancyRate }}%</span>
+          </div>
+          <div class="occupancy-track">
+            <div
+              class="occupancy-fill"
+              :style="{ width: `${currentOccupancyRate}%` }"
+            ></div>
           </div>
         </div>
 
@@ -212,9 +271,9 @@ async function clearUnitOwner(unit) {
         <!-- Define Structure — only visible when no structure exists yet AND fetch succeeded -->
         <div v-if="!hasStructure && !unitsError">
           <pv-button
-              label="Define Structure"
+              :label="t('projects.actions.define-structure') || 'Configurar Estructura'"
               icon="pi pi-sitemap"
-              class="w-full"
+              class="w-full custom-green-button"
               severity="success"
               @click="showStructureDialog = true"
           />
@@ -324,7 +383,19 @@ async function clearUnitOwner(unit) {
     </div>
   </div>
 
-  <p v-else class="text-gray-500 text-center">{{ t("projects.messages.no-projects") }}</p>
+  <div v-else class="text-center py-8">
+    <div class="inline-flex align-items-center justify-content-center w-4rem h-4rem border-circle bg-gray-100 text-gray-500 mb-3">
+      <i class="pi pi-building text-2xl"></i>
+    </div>
+    <h3 class="text-lg font-semibold text-gray-800 mb-2">Proyecto no encontrado</h3>
+    <p class="text-gray-500 text-sm mb-4">{{ t("projects.messages.no-projects") }}</p>
+    <pv-button
+      :label="t('projects.actions.go-back') || 'Regresar a Proyectos'"
+      icon="pi pi-arrow-left"
+      class="custom-green-button"
+      @click="navigateBack"
+    />
+  </div>
 
   <!-- Define Structure Dialog -->
   <DefineStructureDialog
@@ -468,6 +539,38 @@ async function clearUnitOwner(unit) {
   margin-top: 0.15rem;
   font-size: 0.72rem;
   color: #6b7280;
+}
+
+.occupancy-bar-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.6rem 0.85rem;
+  background: #f9fafb;
+  border: 1px solid #eef0f2;
+  border-radius: 0.6rem;
+}
+
+.occupancy-bar-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: #4b5563;
+}
+
+.occupancy-track {
+  width: 100%;
+  height: 7px;
+  background: #e5e7eb;
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.occupancy-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #10b981, #059669);
+  border-radius: 9999px;
+  transition: width 0.4s ease;
 }
 
 .project-hero__meta {

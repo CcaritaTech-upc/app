@@ -92,10 +92,10 @@ const filteredItems = computed(() => {
 </script>
 
 <template>
-  <pv-toast/>
-  <pv-confirm-dialog/>
-
   <div class="app-container">
+    <pv-toast/>
+    <pv-confirm-dialog/>
+
     <header class="app-header">
       <pv-toolbar class="custom-toolbar">
         <template #start>
@@ -199,11 +199,7 @@ const filteredItems = computed(() => {
       </div>
 
       <main class="main-content" :class="{ 'with-sidebar': drawer }">
-        <router-view v-slot="{ Component }">
-          <transition name="fade" mode="out-in">
-            <component :is="Component" />
-          </transition>
-        </router-view>
+        <router-view :key="$route.path" />
       </main>
     </div>
   </div>

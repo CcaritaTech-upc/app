@@ -53,41 +53,64 @@ export const useProjectStore = defineStore("projects", () => {
         // Stamp ownership with the authenticated builder so the project belongs
         // to its creator (not the entity's default builderId).
         const builderId = getCurrentBuilderId();
-        projectApi
+        return projectApi
             .createProject({ ...project, builderId })
             .then((response) => {
                 const resource = response.data;
                 const newProject = ProjectAssembler.toEntityFromResource(resource);
-                projects.value.push(newProject);
+                if (newProject) {
+                    projects.value.push(newProject);
+                }
+                return newProject;
             })
-            .catch((error) => errors.value.push(error));
+            .catch((error) => {
+                errors.value.push(error);
+                throw error;
+            });
     }
 
     function updateProject(project) {
         return projectApi
             .updateProject(project)
             .then((response) => {
-                // Patch in place when the API echoes the entity; the backend may
-                // return 204 (no body), so the refetch below is the real fix.
-                if (response?.data) {
-                    const updated = ProjectAssembler.toEntityFromResource(response.data);
-                    const index = projects.value.findIndex((p) => p.id === updated.id);
-                    if (index !== -1) projects.value[index] = updated;
+                const idInt = parseInt(project.id);
+                const index = projects.value.findIndex((p) => p.id === idInt);
+                if (index !== -1) {
+                    if (response?.data) {
+                        const updated = ProjectAssembler.toEntityFromResource(response.data);
+                        projects.value[index] = updated;
+                    } else {
+                        // Backend returned 204 NoContent, update existing entity properties in place
+                        const current = projects.value[index];
+                        current.name = project.name ?? current.name;
+                        current.description = project.description ?? current.description;
+                        current.location = project.location ?? current.location;
+                        current.imageUrl = project.imageUrl ?? current.imageUrl;
+                        if (project.totalUnits !== undefined) current.totalUnits = project.totalUnits;
+                    }
                 }
                 projectsLoaded.value = false;
+                return project;
             })
-            .catch((error) => errors.value.push(error));
+            .catch((error) => {
+                errors.value.push(error);
+                throw error;
+            });
     }
 
     function deleteProject(project) {
+        const projectId = project.id ?? project;
         return projectApi
-            .deleteProject(project.id)
+            .deleteProject(projectId)
             .then(() => {
-                const index = projects.value.findIndex((p) => p.id === project.id);
+                const index = projects.value.findIndex((p) => p.id === parseInt(projectId));
                 if (index !== -1) projects.value.splice(index, 1);
                 return fetchProjects();
             })
-            .catch((error) => errors.value.push(error));
+            .catch((error) => {
+                errors.value.push(error);
+                throw error;
+            });
     }
 
     const structureLoading = ref(false);

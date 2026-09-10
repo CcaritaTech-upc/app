@@ -51,6 +51,8 @@
       "edit": "Edit",
       "delete": "Delete",
       "save": "Save",
+      "save-and-configure": "Save & Configure Structure",
+      "define-structure": "Define Structure",
       "cancel": "Cancel",
       "upload-image": "Upload Image",
       "go-back": "Go Back"

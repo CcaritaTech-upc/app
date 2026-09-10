@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useToast } from 'primevue/usetoast';
 import useProjectStore from '../../application/project.store.js';
 import { useDeviceStore } from '../../../devices/application/device.store.js';
@@ -21,6 +22,7 @@ const emit = defineEmits(['update:visible', 'structure-defined']);
 const store = useProjectStore();
 const deviceStore = useDeviceStore();
 const toast = useToast();
+const { t } = useI18n();
 
 const localVisible = ref(props.visible);
 const floors = ref(1);
@@ -239,7 +241,7 @@ function handleCancel() {
     <pv-dialog
         v-model:visible="localVisible"
         modal
-        header="Define Project Structure"
+        :header="t('projects.actions.define-structure') || 'Configurar Estructura del Proyecto'"
         :style="{ width: '880px', maxWidth: '96vw', maxHeight: '90vh' }"
         class="define-structure-dialog"
     >
@@ -249,7 +251,7 @@ function handleCancel() {
                 <div class="ds-field">
                     <label class="ds-label">
                         <i class="pi pi-building"></i>
-                        Floors
+                        {{ t('projects.fields.floors') || 'Pisos' }}
                     </label>
                     <pv-input-number
                         v-model="floors"
@@ -263,7 +265,7 @@ function handleCancel() {
                 <div class="ds-field">
                     <label class="ds-label">
                         <i class="pi pi-th-large"></i>
-                        Units per floor
+                        {{ t('projects.fields.units-per-floor') || 'Unidades por piso' }}
                     </label>
                     <pv-input-number
                         v-model="unitsPerFloor"
@@ -280,8 +282,8 @@ function handleCancel() {
             <div class="ds-summary">
                 <i class="pi pi-info-circle"></i>
                 <span>
-                    This will create <strong>{{ (floors || 0) * (unitsPerFloor || 0) }}</strong> unit(s):
-                    {{ floors || 0 }} floor(s) × {{ unitsPerFloor || 0 }} unit(s) per floor.
+                    Esto creará <strong>{{ (floors || 0) * (unitsPerFloor || 0) }}</strong> unidad(es):
+                    {{ floors || 0 }} piso(s) × {{ unitsPerFloor || 0 }} unidad(es) por piso.
                 </span>
             </div>
 
@@ -289,7 +291,7 @@ function handleCancel() {
             <div v-if="deviceStore.deviceTypes.length > 0">
                 <p class="ds-section-title">
                     <i class="pi pi-sitemap"></i>
-                    Configure each floor
+                    Configurar cada piso
                 </p>
 
                 <div class="ds-accordion">
@@ -308,9 +310,9 @@ function handleCancel() {
                                 class="pi floor-panel__chevron"
                                 :class="isFloorExpanded(row.floor) ? 'pi-chevron-down' : 'pi-chevron-right'"
                             ></i>
-                            <span class="floor-panel__name">Floor {{ row.floor }}</span>
+                            <span class="floor-panel__name">Piso {{ row.floor }}</span>
                             <span class="floor-panel__meta">
-                                <span>{{ row.units.length }} unit{{ row.units.length === 1 ? '' : 's' }}</span>
+                                <span>{{ row.units.length }} unidad{{ row.units.length === 1 ? '' : 'es' }}</span>
                                 <span v-if="floorDeviceCount(row.floor) > 0" class="floor-panel__badge">
                                     <i class="pi pi-wifi"></i>
                                     {{ floorDeviceCount(row.floor) }}
@@ -324,14 +326,14 @@ function handleCancel() {
                             <div class="ds-field">
                                 <label class="ds-sublabel">
                                     <i class="pi pi-wifi"></i>
-                                    Floor-wide IoT devices
+                                    Dispositivos IoT por piso
                                 </label>
                                 <pv-multi-select
                                     v-model="deviceTypesByFloor[row.floor]"
                                     :options="floorDeviceTypes"
                                     option-label="displayName"
                                     option-value="code"
-                                    placeholder="Default devices (3)"
+                                    placeholder="Dispositivos por defecto (3)"
                                     class="w-full"
                                     display="chip"
                                 />
@@ -339,26 +341,26 @@ function handleCancel() {
 
                             <!-- Per-unit configuration -->
                             <div>
-                                <p class="ds-units-title">Units</p>
+                                <p class="ds-units-title">Unidades</p>
                                 <div class="ds-units">
                                     <div
                                         v-for="unit in row.units"
                                         :key="ownerKey(unit.floor, unit.roomNumber)"
                                         class="unit-block"
                                     >
-                                        <span class="unit-block__no">Unit {{ unit.roomNumber }}</span>
+                                        <span class="unit-block__no">Unidad {{ unit.roomNumber }}</span>
                                         <pv-input-text
                                             v-model="ownerEmails[ownerKey(unit.floor, unit.roomNumber)]"
                                             class="w-full"
                                             type="email"
-                                            placeholder="Owner email (optional)"
+                                            placeholder="Correo propietario (opcional)"
                                         />
                                         <pv-multi-select
                                             v-model="unitDevicePackages[ownerKey(unit.floor, unit.roomNumber)]"
                                             :options="unitDeviceTypes"
                                             option-label="displayName"
                                             option-value="code"
-                                            placeholder="Unit devices (optional)"
+                                            placeholder="Dispositivos unidad (opcional)"
                                             class="w-full"
                                             display="chip"
                                         />
@@ -373,17 +375,18 @@ function handleCancel() {
 
         <template #footer>
             <pv-button
-                label="Cancel"
+                :label="t('projects.actions.cancel') || 'Cancelar'"
                 icon="pi pi-times"
                 @click="handleCancel"
                 severity="secondary"
                 outlined
             />
             <pv-button
-                label="Define Structure"
+                :label="t('projects.actions.define-structure') || 'Configurar Estructura'"
                 icon="pi pi-check"
                 @click="handleSubmit"
                 :loading="submitting"
+                class="custom-green-button"
                 severity="success"
             />
         </template>

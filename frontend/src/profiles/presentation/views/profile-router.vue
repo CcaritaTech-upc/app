@@ -51,9 +51,7 @@ const loadProfile = () => {
 
 // Load profile on mount
 onMounted(() => {
-    if (!store.profileLoaded) {
-        loadProfile();
-    }
+    loadProfile();
 });
 
 // Watch for user changes (e.g., after logout/login with different user)

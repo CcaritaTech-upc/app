@@ -41,6 +41,10 @@ export const useProfileStore = defineStore('profile', () => {
 
         try {
             const response = await profileApi.createProfile(profileData);
+            const { profileEntity } = ProfileAssembler.toDomainFromResponse(response);
+            profile.value = profileEntity;
+            viewType.value = (profileEntity.role || 'builder').toLowerCase();
+            profileLoaded.value = true;
             return response;
         } catch (error) {
             console.error('Error creating profile:', error);
@@ -57,6 +61,10 @@ export const useProfileStore = defineStore('profile', () => {
 
         try {
             const response = await profileApi.updateProfile(profileId, profileData);
+            const { profileEntity } = ProfileAssembler.toDomainFromResponse(response);
+            profile.value = profileEntity;
+            viewType.value = (profileEntity.role || 'builder').toLowerCase();
+            profileLoaded.value = true;
             return response;
         } catch (error) {
             console.error('Error updating profile:', error);

@@ -2,12 +2,16 @@
 import { ref, computed, onMounted } from "vue";
 import { useI18n } from "vue-i18n";
 import { useRoute, useRouter } from "vue-router";
+import { useToast } from "primevue/usetoast";
 import useProjectStore from "../../application/project.store.js";
 import { Project } from "../../domain/model/project.entity.js";
+import { CLOUDINARY_WIDGET_URL } from "../../../shared/infrastructure/constants.js";
+import { getProjectImageUploadConfig } from "../../../shared/infrastructure/cloudinary-config.js";
 
 const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
+const toast = useToast();
 const store = useProjectStore();
 
 const form = ref({
@@ -19,24 +23,35 @@ const form = ref({
   imageUrl: ""
 });
 const isEdit = computed(() => !!route.params.id);
-
-onMounted(() => {
-  if (isEdit.value) {
-    const existing = store.getProjectById(route.params.id);
-    if (existing) form.value = { ...existing };
-    else router.push({ name: "projects-management" });
-  }
-
-  // Cargar Cloudinary widget
-  loadCloudinaryScript();
-});
-
-import { CLOUDINARY_WIDGET_URL } from "../../../shared/infrastructure/constants.js";
-import { getProjectImageUploadConfig } from "../../../shared/infrastructure/cloudinary-config.js";
-
+const saving = ref(false);
 const cloudinaryName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
 const cloudinaryPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
 const cloudinaryReady = ref(false);
+const fileInput = ref(null);
+
+onMounted(async () => {
+  if (isEdit.value) {
+    let existing = store.getProjectById(route.params.id);
+    if (!existing) {
+      await store.fetchProjects();
+      existing = store.getProjectById(route.params.id);
+    }
+    if (existing) {
+      form.value = {
+        name: existing.name || "",
+        description: existing.description || "",
+        location: existing.location || "",
+        totalUnits: existing.totalUnits || 0,
+        occupiedUnits: existing.occupiedUnits || 0,
+        imageUrl: existing.imageUrl || ""
+      };
+    } else {
+      router.push({ name: "projects-management" });
+    }
+  }
+
+  loadCloudinaryScript();
+});
 
 const loadCloudinaryScript = () => {
   if (window.cloudinary) {
@@ -50,11 +65,29 @@ const loadCloudinaryScript = () => {
   document.head.appendChild(script);
 };
 
-const fileInput = ref(null);
-
-const handleLocalFileUpload = (event) => {
+const handleLocalFileUpload = async (event) => {
   const file = event.target.files?.[0];
   if (!file) return;
+
+  if (cloudinaryName && cloudinaryPreset) {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('upload_preset', cloudinaryPreset);
+      const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudinaryName}/image/upload`, {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json();
+      if (data.secure_url) {
+        form.value.imageUrl = data.secure_url;
+        return;
+      }
+    } catch (e) {
+      console.warn('Direct upload to Cloudinary failed:', e);
+    }
+  }
+
   const reader = new FileReader();
   reader.onload = (e) => {
     form.value.imageUrl = e.target.result;
@@ -81,20 +114,57 @@ const openUploadModal = () => {
     }
   }
 
-  // Fallback seguro: abrir selector de archivo local
   if (fileInput.value) {
     fileInput.value.click();
   }
 };
 
 const save = async () => {
-  const project = new Project({
-    id: isEdit.value ? route.params.id : null,
-    ...form.value,
-  });
-  if (isEdit.value) await store.updateProject(project);
-  else await store.addProject(project);
-  router.push({ name: "projects-management" });
+  saving.value = true;
+  try {
+    const project = new Project({
+      id: isEdit.value ? parseInt(route.params.id) : null,
+      ...form.value,
+    });
+    if (isEdit.value) {
+      await store.updateProject(project);
+      toast.add({
+        severity: 'success',
+        summary: t('common.success') || 'Éxito',
+        detail: t('projects.messages.saved') || 'Proyecto actualizado exitosamente',
+        life: 3000
+      });
+      router.push({ name: "projects-management-details", params: { id: route.params.id } });
+    } else {
+      const created = await store.addProject(project);
+      toast.add({
+        severity: 'success',
+        summary: t('common.success') || 'Éxito',
+        detail: t('projects.messages.saved') || 'Proyecto creado exitosamente',
+        life: 3000
+      });
+      const newId = created?.id;
+      if (newId) {
+        router.push({
+          name: "projects-management-details",
+          params: { id: newId },
+          query: { openStructure: "true" }
+        });
+      } else {
+        router.push({ name: "projects-management" });
+      }
+    }
+  } catch (error) {
+    console.error('Error saving project:', error);
+    toast.add({
+      severity: 'error',
+      summary: 'Error',
+      detail: 'No se pudo guardar el proyecto. Por favor verifique los datos.',
+      life: 4000
+    });
+  } finally {
+    saving.value = false;
+  }
 };
 
 const cancel = () => {
@@ -226,8 +296,9 @@ const cancel = () => {
           <div class="flex gap-3 pt-4 border-t border-gray-200">
             <pv-button
                 type="submit"
-                :label="t('projects.actions.save')"
+                :label="isEdit ? t('projects.actions.save') : (t('projects.actions.save-and-configure') || 'Guardar y Configurar Estructura')"
                 icon="pi pi-check"
+                :loading="saving"
                 class="custom-green-button flex-1"
             />
             <pv-button

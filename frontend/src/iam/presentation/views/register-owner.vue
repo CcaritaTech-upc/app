@@ -392,7 +392,7 @@ async function handleRegister() {
       name: registerForm.value.name,
       username: registerForm.value.username,
       address: registerForm.value.address,
-      age: registerForm.value.age,
+      age: registerForm.value.age ? parseInt(registerForm.value.age) : null,
       phoneNumber: registerForm.value.phoneNumber,
       secondEmail: registerForm.value.secondEmail || ''
     };

@@ -4,7 +4,34 @@
 
     <div class="profile-header">
       <div class="profile-card">
-        <img :src="profile.photoUrl" alt="Profile Photo" class="profile-photo" />
+        <div class="photo-wrapper">
+          <img
+            v-if="profile.photoUrl"
+            :src="profile.photoUrl"
+            alt="Profile Photo"
+            class="profile-photo"
+          />
+          <div v-else class="profile-photo placeholder">
+            <span>{{ profile.name ? profile.name.charAt(0).toUpperCase() : 'B' }}</span>
+          </div>
+          <div v-if="isEditing" class="photo-upload-overlay">
+            <input
+              type="file"
+              ref="fileInput"
+              accept="image/*"
+              style="display: none;"
+              @change="handlePhotoChange"
+            />
+            <pv-button
+              type="button"
+              icon="pi pi-camera"
+              class="change-photo-btn"
+              rounded
+              @click="triggerPhotoUpload"
+              title="Cambiar foto"
+            />
+          </div>
+        </div>
         <div class="profile-info">
           <h2 class="profile-name">{{ profile.name }}</h2>
           <p class="profile-role">{{ $t('profile.builderRole') }}</p>
@@ -102,6 +129,24 @@ const store = useProfileStore()
 const profile = computed(() => store.profile)
 const api = new ProfileApi()
 const isEditing = ref(false)
+const fileInput = ref(null)
+
+function triggerPhotoUpload() {
+  if (fileInput.value) {
+    fileInput.value.click()
+  }
+}
+
+function handlePhotoChange(event) {
+  const file = event.target.files?.[0]
+  if (!file) return
+
+  const reader = new FileReader()
+  reader.onload = (e) => {
+    profile.value.photoUrl = e.target.result
+  }
+  reader.readAsDataURL(file)
+}
 
 async function toggleEdit() {
   if (isEditing.value) {
@@ -120,7 +165,6 @@ async function saveProfile() {
       name: profile.value.name,
       username: profile.value.username,
       address: profile.value.address,
-      age: profile.value.age,
       phoneNumber: profile.value.phoneNumber,
       photoUrl: profile.value.photoUrl,
       secondEmail: profile.value.secondEmail
@@ -177,12 +221,39 @@ function cancelEdit() {
   width: 100%;
   max-width: 800px;
 }
+.photo-wrapper {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  flex-shrink: 0;
+}
 .profile-photo {
   width: 120px;
   height: 120px;
   border-radius: 50%;
   border: 2px solid black;
   object-fit: cover;
+}
+.profile-photo.placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: white;
+  background-color: #10b981;
+}
+.photo-upload-overlay {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+}
+.change-photo-btn {
+  background-color: #059669 !important;
+  color: white !important;
+  border: 2px solid white !important;
+  width: 36px !important;
+  height: 36px !important;
 }
 .profile-info {
   flex-grow: 1;
