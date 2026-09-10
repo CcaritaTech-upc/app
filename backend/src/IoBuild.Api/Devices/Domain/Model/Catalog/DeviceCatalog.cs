@@ -1,4 +1,4 @@
-namespace IoBuild.Api.Devices;
+namespace IoBuild.Api.Devices.Domain.Model.Catalog;
 
 public sealed record DeviceCatalogEntry(string Code, string DisplayName, string Scope);
 public static class DeviceCatalog

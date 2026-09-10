@@ -1,9 +1,12 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using IoBuild.Api.Devices.Domain.Model.Aggregates;
+using IoBuild.Api.Devices.Domain.Model.Catalog;
+using IoBuild.Api.Devices.Domain.Model.Entities;
 using IoBuild.Api.Persistence;
 using Microsoft.EntityFrameworkCore;
 
-namespace IoBuild.Api.Devices;
+namespace IoBuild.Api.Devices.Application.Internal.CommandServices;
 
 public sealed record TelemetryMessage(int DeviceId, string EventId, DateTimeOffset OccurredAt, string Status, string ReportedJson, double EnergyKwh, double TemperatureC = 0, double VoltageV = 0);
 public interface IInfluxTelemetrySink { Task WriteAsync(TelemetryMessage message, CancellationToken cancellationToken = default); }

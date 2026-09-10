@@ -1,6 +1,6 @@
-using IoBuild.Api.Devices;
+using IoBuild.Api.Devices.Application.Internal.CommandServices;
 
-namespace IoBuild.Api.Devices;
+namespace IoBuild.Api.Devices.Infrastructure.InfluxDB;
 
 public sealed class InfluxHttpTelemetrySink(HttpClient client, Microsoft.Extensions.Configuration.IConfiguration configuration) : IInfluxTelemetrySink
 {

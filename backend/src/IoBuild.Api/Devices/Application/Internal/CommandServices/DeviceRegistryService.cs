@@ -1,8 +1,11 @@
 using System.Text.Json;
+using IoBuild.Api.Devices.Domain.Model.Aggregates;
+using IoBuild.Api.Devices.Domain.Model.Entities;
+using IoBuild.Api.Devices.Infrastructure.Mqtt;
 using IoBuild.Api.Persistence;
 using Microsoft.EntityFrameworkCore;
 
-namespace IoBuild.Api.Devices;
+namespace IoBuild.Api.Devices.Application.Internal.CommandServices;
 
 public sealed class DeviceRegistryService(IoBuildDbContext db, IDeviceMqttPublisher mqtt, Microsoft.Extensions.Configuration.IConfiguration configuration)
 {
@@ -39,9 +42,16 @@ public sealed class DeviceRegistryAnnouncer(IServiceScopeFactory scopes) : IHost
 {
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        using var scope = scopes.CreateScope();
-        await scope.ServiceProvider.GetRequiredService<DeviceRegistryService>().ReconcileAsync(cancellationToken);
-        await scope.ServiceProvider.GetRequiredService<DeviceCommandService>().RepublishPendingAsync(cancellationToken);
+        try
+        {
+            using var scope = scopes.CreateScope();
+            await scope.ServiceProvider.GetRequiredService<DeviceRegistryService>().ReconcileAsync(cancellationToken);
+            await scope.ServiceProvider.GetRequiredService<DeviceCommandService>().RepublishPendingAsync(cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[DeviceRegistryAnnouncer] Deferred reconciliation: {ex.Message}");
+        }
     }
 
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;

@@ -1,8 +1,11 @@
 using System.Buffers;
+using IoBuild.Api.Devices.Application.Internal.CommandServices;
+using IoBuild.Api.Devices.Domain.Model.Aggregates;
+using IoBuild.Api.Devices.Domain.Model.Entities;
 using IoBuild.Api.Persistence;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace IoBuild.Api.Devices;
+namespace IoBuild.Api.Devices.Infrastructure.Mqtt;
 
 public sealed class MqttDeviceTransport(Microsoft.Extensions.Configuration.IConfiguration configuration, IServiceScopeFactory scopes) : IDeviceMqttPublisher, IHostedService, IAsyncDisposable
 {

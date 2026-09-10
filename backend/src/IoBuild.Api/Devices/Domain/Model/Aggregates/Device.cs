@@ -1,4 +1,4 @@
-namespace IoBuild.Api.Persistence;
+namespace IoBuild.Api.Devices.Domain.Model.Aggregates;
 
 /// <summary>
 /// Devices BC aggregate root.

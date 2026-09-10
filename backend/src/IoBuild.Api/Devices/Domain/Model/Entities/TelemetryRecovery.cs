@@ -1,4 +1,4 @@
-namespace IoBuild.Api.Persistence;
+namespace IoBuild.Api.Devices.Domain.Model.Entities;
 
 public sealed class TelemetryRecovery
 {

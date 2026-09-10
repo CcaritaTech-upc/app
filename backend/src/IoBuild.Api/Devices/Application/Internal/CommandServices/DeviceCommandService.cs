@@ -1,8 +1,12 @@
 using System.Text.Json;
+using IoBuild.Api.Devices.Domain.Model.Aggregates;
+using IoBuild.Api.Devices.Domain.Model.Catalog;
+using IoBuild.Api.Devices.Domain.Model.Entities;
+using IoBuild.Api.Devices.Infrastructure.Mqtt;
 using IoBuild.Api.Persistence;
 using Microsoft.EntityFrameworkCore;
 
-namespace IoBuild.Api.Devices;
+namespace IoBuild.Api.Devices.Application.Internal.CommandServices;
 
 public sealed class DeviceCommandService(IoBuildDbContext db, IDeviceMqttPublisher mqtt)
 {
