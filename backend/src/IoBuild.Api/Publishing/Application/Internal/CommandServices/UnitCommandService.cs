@@ -41,11 +41,11 @@ public class UnitCommandService : IUnitCommandService
         await _unitRepository.UpdateAsync(unit, ct);
 
         // Synchronize with UnitOwnerProjections for instant device actuation authorization
-        if (resolvedOwnerId.HasValue)
-        {
-            var existingProjection = await _dbContext.UnitOwnerProjections
-                .FirstOrDefaultAsync(p => p.UnitId == unit.Id, ct);
+        var existingProjection = await _dbContext.UnitOwnerProjections
+            .FirstOrDefaultAsync(p => p.UnitId == unit.Id, ct);
 
+        if (resolvedOwnerId.HasValue && !string.IsNullOrWhiteSpace(command.OwnerEmail))
+        {
             if (existingProjection is null)
             {
                 _dbContext.UnitOwnerProjections.Add(new UnitOwnerProjection
@@ -60,6 +60,10 @@ public class UnitCommandService : IUnitCommandService
                 existingProjection.OwnerUserId = resolvedOwnerId.Value;
                 existingProjection.UpdatedAt = DateTimeOffset.UtcNow;
             }
+        }
+        else if (existingProjection is not null)
+        {
+            _dbContext.UnitOwnerProjections.Remove(existingProjection);
         }
 
         await _dbContext.SaveChangesAsync(ct);

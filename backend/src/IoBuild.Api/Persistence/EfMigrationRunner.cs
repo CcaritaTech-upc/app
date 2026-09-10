@@ -1,3 +1,4 @@
+using System.Data;
 using Microsoft.EntityFrameworkCore;
 
 namespace IoBuild.Api.Persistence;
@@ -15,25 +16,49 @@ public sealed class EfMigrationRunner(IoBuildDbContext dbContext) : IMigrationRu
 
         if (dbContext.Database.IsRelational())
         {
-            var statements = new[]
+            var existingColumns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var connection = dbContext.Database.GetDbConnection();
+            var shouldClose = connection.State != ConnectionState.Open;
+            if (shouldClose) await connection.OpenAsync(cancellationToken);
+
+            try
             {
-                "ALTER TABLE profiles ADD COLUMN PhoneNumber VARCHAR(50) NULL;",
-                "ALTER TABLE profiles ADD COLUMN Address VARCHAR(255) NULL;",
-                "ALTER TABLE profiles ADD COLUMN SecondEmail VARCHAR(150) NULL;",
-                "ALTER TABLE profiles ADD COLUMN Age INT NULL;",
-                "ALTER TABLE profiles ADD COLUMN PhotoUrl VARCHAR(2000) NULL;"
+                using var cmd = connection.CreateCommand();
+                cmd.CommandText = "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'profiles';";
+                using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
+                while (await reader.ReadAsync(cancellationToken))
+                {
+                    existingColumns.Add(reader.GetString(0));
+                }
+            }
+            finally
+            {
+                if (shouldClose) await connection.CloseAsync();
+            }
+
+            var columnsToAdd = new (string Name, string Type)[]
+            {
+                ("PhoneNumber", "VARCHAR(50) NULL"),
+                ("Address", "VARCHAR(255) NULL"),
+                ("SecondEmail", "VARCHAR(150) NULL"),
+                ("PhotoUrl", "LONGTEXT NULL")
             };
 
-            foreach (var sql in statements)
+            foreach (var (colName, colType) in columnsToAdd)
             {
-                try
+                if (!existingColumns.Contains(colName))
                 {
-                    await dbContext.Database.ExecuteSqlRawAsync(sql, cancellationToken);
+                    await dbContext.Database.ExecuteSqlRawAsync($"ALTER TABLE profiles ADD COLUMN {colName} {colType};", cancellationToken);
                 }
-                catch
-                {
-                    // Ignored: column likely already exists.
-                }
+            }
+
+            if (existingColumns.Contains("PhotoUrl"))
+            {
+                await dbContext.Database.ExecuteSqlRawAsync("ALTER TABLE profiles MODIFY COLUMN PhotoUrl LONGTEXT NULL;", cancellationToken);
+            }
+            if (existingColumns.Contains("CloudinaryReference"))
+            {
+                await dbContext.Database.ExecuteSqlRawAsync("ALTER TABLE profiles MODIFY COLUMN CloudinaryReference LONGTEXT NULL;", cancellationToken);
             }
         }
     }

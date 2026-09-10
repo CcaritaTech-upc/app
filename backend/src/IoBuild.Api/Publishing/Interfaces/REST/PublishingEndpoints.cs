@@ -21,19 +21,62 @@ public static class PublishingEndpoints
 
         projects.MapGet("", async (ClaimsPrincipal user, IoBuildDbContext db, CancellationToken ct) =>
         {
-            var builderId = int.TryParse(user.FindFirst(ClaimTypes.Sid)?.Value, out var id) ? id : 0;
-            return Results.Ok(await db.Projects.Where(project => project.BuilderId == builderId).OrderBy(project => project.Id).ToListAsync(ct));
+            var sid = user.FindFirst(ClaimTypes.Sid)?.Value ?? user.FindFirst("sid")?.Value ?? user.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? user.FindFirst("sub")?.Value;
+            var builderId = int.TryParse(sid, out var id) ? id : 0;
+            var projectList = await db.Projects.Where(project => project.BuilderId == builderId).OrderBy(project => project.Id).ToListAsync(ct);
+            var projectIds = projectList.Select(p => p.Id).ToList();
+            var occupiedCounts = await db.Units
+                .Where(u => projectIds.Contains(u.ProjectId) && (!string.IsNullOrEmpty(u.OwnerEmail) || u.OwnerId.HasValue))
+                .GroupBy(u => u.ProjectId)
+                .Select(g => new { ProjectId = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(g => g.ProjectId, g => g.Count, ct);
+
+            var result = projectList.Select(p => new
+            {
+                p.Id,
+                p.Name,
+                p.Description,
+                p.Location,
+                p.TotalUnits,
+                OccupiedUnits = occupiedCounts.GetValueOrDefault(p.Id, 0),
+                p.BuilderId,
+                p.ImageUrl,
+                p.StructureDefined,
+                p.CreatedAt
+            });
+
+            return Results.Ok(result);
         }).RequireAuthorization();
 
-        projects.MapPost("", async (CreateProjectRequest request, CoreBusinessService service, CancellationToken ct) =>
+        projects.MapPost("", async (CreateProjectRequest request, ClaimsPrincipal user, CoreBusinessService service, CancellationToken ct) =>
         {
-            var project = await service.CreateProjectAsync(request.Name, request.Description, request.Location, request.TotalUnits, request.BuilderId, request.ImageUrl, ct);
+            var sid = user.FindFirst(ClaimTypes.Sid)?.Value ?? user.FindFirst("sid")?.Value ?? user.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? user.FindFirst("sub")?.Value;
+            var tokenBuilderId = int.TryParse(sid, out var id) ? id : 0;
+            var builderId = request.BuilderId.HasValue && request.BuilderId.Value > 0 ? request.BuilderId.Value : tokenBuilderId;
+            var project = await service.CreateProjectAsync(request.Name, request.Description, request.Location, request.TotalUnits, builderId, request.ImageUrl, ct);
             return Results.Created($"/api/v1/projects/{project.Id}", project);
         }).RequireAuthorization();
 
         projects.MapGet("/{id:int}", async (int id, IoBuildDbContext db, CancellationToken ct) =>
-            await db.Projects.FindAsync([id], ct) is { } item ? Results.Ok(item) : Results.NotFound())
-        .RequireAuthorization();
+        {
+            var item = await db.Projects.FindAsync([id], ct);
+            if (item is null) return Results.NotFound();
+            var occupiedUnits = await db.Units
+                .CountAsync(u => u.ProjectId == id && (!string.IsNullOrEmpty(u.OwnerEmail) || u.OwnerId.HasValue), ct);
+            return Results.Ok(new
+            {
+                item.Id,
+                item.Name,
+                item.Description,
+                item.Location,
+                item.TotalUnits,
+                OccupiedUnits = occupiedUnits,
+                item.BuilderId,
+                item.ImageUrl,
+                item.StructureDefined,
+                item.CreatedAt
+            });
+        }).RequireAuthorization();
 
         projects.MapPut("/{id:int}", async (int id, CreateProjectRequest request, IoBuildDbContext db, CancellationToken ct) =>
         {
@@ -59,7 +102,8 @@ public static class PublishingEndpoints
 
         projects.MapPost("/{id:int}/structure", async (int id, ProjectStructureRequest request, ClaimsPrincipal user, IProjectCommandService commandService, IoBuildDbContext db, CancellationToken ct) =>
         {
-            if (!string.Equals(user.FindFirst(ClaimTypes.Role)?.Value, "Builder", StringComparison.OrdinalIgnoreCase))
+            var role = user.FindFirst(ClaimTypes.Role)?.Value ?? user.FindFirst("role")?.Value;
+            if (!string.Equals(role, "Builder", StringComparison.OrdinalIgnoreCase))
                 return Results.Json(new { error = "Only users with the Builder role may define project structure." }, statusCode: 403);
             if (request.Floors < 1 || request.UnitsPerFloor < 1)
                 return Results.Json(new { error = "floors and unitsPerFloor must be at least 1." }, statusCode: 422);

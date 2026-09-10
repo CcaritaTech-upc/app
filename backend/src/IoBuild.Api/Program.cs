@@ -317,7 +317,7 @@ public partial class Program;
 // each BC's Interfaces/REST/Resources/*. For now they remain global so that
 // existing tests and frontend contracts stay green.
 
-public sealed record CreateProjectRequest(string Name, string Description, string Location, int TotalUnits, int BuilderId, string? ImageUrl);
+public sealed record CreateProjectRequest(string Name, string Description, string Location, int TotalUnits, int? BuilderId = null, string? ImageUrl = null);
 public sealed record CreateProfileRequest(
     int UserId,
     string Name,

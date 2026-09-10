@@ -22,13 +22,22 @@ public sealed class Unit
         RoomNumber = string.IsNullOrEmpty(roomNumber) ? unitNumber : roomNumber;
     }
 
-    public void AssignOwner(string email, int? ownerId = null)
+    public void AssignOwner(string? email, int? ownerId = null)
     {
-        OwnerEmail = email;
-        if (ownerId.HasValue)
+        if (string.IsNullOrWhiteSpace(email))
         {
-            OwnerId = ownerId.Value;
+            OwnerEmail = null;
+            OwnerId = null;
+            Status = "available";
         }
-        Status = "occupied";
+        else
+        {
+            OwnerEmail = email;
+            if (ownerId.HasValue)
+            {
+                OwnerId = ownerId.Value;
+            }
+            Status = "occupied";
+        }
     }
 }

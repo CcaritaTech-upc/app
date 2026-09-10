@@ -24,11 +24,12 @@ public sealed class ProjectCommandService(IoBuildDbContext dbContext) : IProject
         if (project is null) throw new KeyNotFoundException($"Project {projectId} not found.");
         if (project.StructureDefined) throw new InvalidOperationException("Project structure already defined.");
 
-        project.StructureDefined = true;
-
         var targetFloors = floorNumbers is { Count: > 0 }
             ? floorNumbers.Distinct().Where(f => f >= 1 && f <= floors).ToList()
             : Enumerable.Range(1, floors).ToList();
+
+        project.StructureDefined = true;
+        project.TotalUnits = targetFloors.Count * unitsPerFloor;
 
         // 1. Provision units
         var units = new List<Unit>();
@@ -37,7 +38,7 @@ public sealed class ProjectCommandService(IoBuildDbContext dbContext) : IProject
             for (int u = 1; u <= unitsPerFloor; u++)
             {
                 var unitNumber = $"{floor}{u:D2}";
-                units.Add(new Unit(projectId, unitNumber, null, floor, $"{u}"));
+                units.Add(new Unit(projectId, unitNumber, null, floor, $"{u:D2}"));
             }
         }
         await dbContext.Units.AddRangeAsync(units, cancellationToken);
