@@ -23,7 +23,15 @@ import pinia from "./pinia.js";
 
 createApp(App)
     .use(i18n)
-    .use(PrimeVue, { theme: { preset: Aura }, ripple: true})
+    .use(PrimeVue, { 
+        theme: { 
+            preset: Aura,
+            options: {
+                darkModeSelector: 'none'
+            }
+        }, 
+        ripple: true
+    })
     .use(ConfirmationService)
     .use(DialogService)
     .use(ToastService)
