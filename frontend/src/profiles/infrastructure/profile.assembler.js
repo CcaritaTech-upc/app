@@ -19,7 +19,7 @@ export class ProfileAssembler {
       name: response.name || response.fullName || '',
       // Email comes from IAM bounded context, not from profiles
       email: emailFromIam || '',
-      secondEmail: response.secondEmail || '',
+      secondEmail: response.secondEmail || response.alternateEmail || '',
       username: response.username || '',
       // Role comes from IAM bounded context, not from profiles
       role: roleFromIam || 'builder',
@@ -27,9 +27,9 @@ export class ProfileAssembler {
 
       photoUrl: response.photoUrl && response.photoUrl !== 'undefined'
         ? response.photoUrl
-        : undefined,
+        : (response.cloudinaryReference || undefined),
 
-      phoneNumber: response.phoneNumber || '',
+      phoneNumber: response.phoneNumber || response.phone || '',
       address: response.address || ''
     };
 

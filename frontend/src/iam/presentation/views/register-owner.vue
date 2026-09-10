@@ -393,7 +393,8 @@ async function handleRegister() {
       username: registerForm.value.username,
       address: registerForm.value.address,
       age: registerForm.value.age,
-      phoneNumber: registerForm.value.phoneNumber
+      phoneNumber: registerForm.value.phoneNumber,
+      secondEmail: registerForm.value.secondEmail || ''
     };
     console.log('Profile data to be created:', profileData);
     

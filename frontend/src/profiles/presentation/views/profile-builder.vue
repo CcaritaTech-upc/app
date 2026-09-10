@@ -103,8 +103,10 @@ const profile = computed(() => store.profile)
 const api = new ProfileApi()
 const isEditing = ref(false)
 
-function toggleEdit() {
-  if (isEditing.value) saveProfile()
+async function toggleEdit() {
+  if (isEditing.value) {
+    await saveProfile()
+  }
   isEditing.value = !isEditing.value
 }
 
@@ -124,6 +126,9 @@ async function saveProfile() {
       secondEmail: profile.value.secondEmail
     })
     console.log('Profile updated successfully')
+    if (profile.value?.userId) {
+      await store.fetchProfile(profile.value.userId)
+    }
   } catch (error) {
     console.error('Error updating profile:', error)
   }
