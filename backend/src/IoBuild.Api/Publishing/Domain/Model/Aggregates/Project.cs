@@ -1,4 +1,4 @@
-namespace IoBuild.Api.Persistence;
+namespace IoBuild.Api.Publishing.Domain.Model.Aggregates;
 
 /// <summary>
 /// Publishing (CoreBusiness) aggregate: Project.

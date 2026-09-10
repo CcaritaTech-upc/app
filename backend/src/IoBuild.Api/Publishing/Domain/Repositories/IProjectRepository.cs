@@ -1,9 +1,9 @@
 using IoBuild.Api.Persistence;
 
-namespace IoBuild.Api.CoreBusiness;
+namespace IoBuild.Api.Publishing.Domain.Repositories;
 
 /// <summary>
-/// Publishing repository contract (Project). Shared UoW.
+/// Publishing repository contract (Project).
 /// </summary>
 public interface IProjectRepository
 {
