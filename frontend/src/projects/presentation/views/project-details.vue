@@ -23,8 +23,10 @@ const units = ref([]);
 const projectClients = ref([]);
 const unitsError = ref(null);
 const showStructureDialog = ref(false);
-const editMode = ref(false);
-const pendingOwnerEmails = ref({});
+const showAssignModal = ref(false);
+const selectedUnitForAssign = ref(null);
+const selectedClientId = ref(null);
+const isAssigning = ref(false);
 const savingUnit = ref(null);
 // Falls back to a branded placeholder when the project image fails to load.
 const imageBroken = ref(false);
@@ -144,16 +146,49 @@ async function onStructureDefined() {
   await loadUnits();
 }
 
-async function saveUnitOwner(unit) {
-  const email = pendingOwnerEmails.value[unit.id];
-  if (!email || !email.trim()) return;
-  savingUnit.value = unit.id;
+const unassignedClients = computed(() => {
+  return projectClients.value.filter(c => !c.unitId);
+});
+
+function openAssignModal(unit) {
+  selectedUnitForAssign.value = unit;
+  selectedClientId.value = null;
+  showAssignModal.value = true;
+}
+
+function getClientForUnit(unit) {
+  if (!unit.ownerEmail) return null;
+  const emailNorm = unit.ownerEmail.trim().toLowerCase();
+  return projectClients.value.find(
+    c => c.unitId === unit.id || (c.email && c.email.trim().toLowerCase() === emailNorm)
+  ) || null;
+}
+
+function goToClientProfile(clientId) {
+  if (clientId) {
+    router.push({ name: 'client-profile', params: { id: clientId } });
+  } else {
+    router.push({ name: 'clients' });
+  }
+}
+
+function navigateToCreateClient() {
+  showAssignModal.value = false;
+  router.push({ name: 'clients' });
+}
+
+async function assignClientToUnit() {
+  if (!selectedUnitForAssign.value || !selectedClientId.value) return;
+  const client = projectClients.value.find(c => c.id === selectedClientId.value);
+  if (!client || !client.email) return;
+
+  isAssigning.value = true;
   try {
-    const updated = await store.assignUnitOwner(unit.id, email.trim());
-    const idx = units.value.findIndex(u => u.id === unit.id);
+    const updated = await store.assignUnitOwner(selectedUnitForAssign.value.id, client.email.trim());
+    const idx = units.value.findIndex(u => u.id === selectedUnitForAssign.value.id);
     if (idx !== -1) units.value[idx] = { ...units.value[idx], ...updated };
-    delete pendingOwnerEmails.value[unit.id];
-    await store.fetchProjects();
+
+    await Promise.all([store.fetchProjects(), loadProjectClients()]);
     try {
       const res = await projectApi.getProjectById(route.params.id);
       if (res?.data) {
@@ -164,11 +199,22 @@ async function saveUnitOwner(unit) {
     } catch (_) {
       project.value = store.getProjectById(route.params.id);
     }
+    showAssignModal.value = false;
   } catch (error) {
-    console.error("Error assigning unit owner:", error);
+    console.error("Error assigning client to unit:", error);
   } finally {
-    savingUnit.value = null;
+    isAssigning.value = false;
   }
+}
+
+function confirmClearUnit(unit) {
+  confirm.require({
+    message: `¿Estás seguro de liberar la Unidad ${unit.roomNumber}? Esto desvinculará al cliente asignado.`,
+    header: 'Liberar Unidad',
+    icon: 'pi pi-exclamation-triangle',
+    acceptClass: 'p-button-danger',
+    accept: () => clearUnitOwner(unit)
+  });
 }
 
 // Clear a unit's owner email (PATCH with null). Frees the room so the project's
@@ -180,7 +226,7 @@ async function clearUnitOwner(unit) {
     const idx = units.value.findIndex(u => u.id === unit.id);
     // Force ownerEmail to null in case the API omits null fields from the resource.
     if (idx !== -1) units.value[idx] = { ...units.value[idx], ...updated, ownerEmail: null };
-    await store.fetchProjects();
+    await Promise.all([store.fetchProjects(), loadProjectClients()]);
     try {
       const res = await projectApi.getProjectById(route.params.id);
       if (res?.data) {
@@ -303,99 +349,114 @@ async function clearUnitOwner(unit) {
     <div v-if="hasStructure" class="mt-8">
       <div class="flex align-items-center gap-2 mb-4">
         <i class="pi pi-building section-icon text-lg"></i>
-        <h2 class="text-lg font-semibold text-gray-800">Project Structure</h2>
-        <pv-tag :value="`${units.length} units`" severity="success" />
-        <pv-button
-            :label="editMode ? 'Done' : 'Edit owners'"
-            :icon="editMode ? 'pi pi-check' : 'pi pi-pencil'"
-            :severity="editMode ? 'success' : 'secondary'"
-            text
-            size="small"
-            class="structure-edit-btn"
-            @click="editMode = !editMode"
-        />
+        <h2 class="text-lg font-semibold text-gray-800">Estructura del Proyecto</h2>
+        <pv-tag :value="`${units.length} unidades`" severity="success" />
+        <div class="ml-auto flex align-items-center gap-2">
+          <pv-button
+              label="Gestionar en Clientes"
+              icon="pi pi-users"
+              severity="secondary"
+              outlined
+              size="small"
+              @click="router.push({ name: 'clients' })"
+          />
+        </div>
       </div>
 
       <!-- Per-floor unit grid from the units API -->
       <div v-if="structureGrid.length > 0" class="structure-floors">
         <section v-for="row in structureGrid" :key="row.floor" class="floor-card">
           <header class="floor-card__head">
-            <span class="floor-card__name">Floor {{ row.floor }}</span>
+            <span class="floor-card__name">Piso {{ row.floor }}</span>
             <span class="floor-card__occ">
               <i class="pi pi-user"></i>
-              {{ occupiedCount(row.units) }}/{{ row.units.length }} occupied
+              {{ occupiedCount(row.units) }}/{{ row.units.length }} ocupadas
             </span>
           </header>
 
           <div class="unit-grid">
             <template v-for="unit in row.units" :key="unit.id">
-              <!-- Edit mode: assign an owner to a vacant unit -->
-              <div v-if="editMode && !unit.ownerEmail" class="unit-card unit-card--edit">
-                <span class="unit-card__no">{{ unit.roomNumber }}</span>
-                <div class="unit-card__editrow">
-                  <pv-input-text
-                      v-model="pendingOwnerEmails[unit.id]"
-                      placeholder="owner@example.com"
-                      type="email"
-                      list="project-clients-list"
-                      class="unit-card__input"
-                  />
+              <!-- Occupied unit -->
+              <div
+                  v-if="unit.ownerEmail"
+                  class="unit-card unit-card--occupied"
+                  :title="`Ocupada: ${getClientForUnit(unit)?.fullName || unit.ownerEmail}`"
+              >
+                <div class="unit-card__top">
+                  <div class="flex align-items-center gap-2">
+                    <i class="pi pi-user"></i>
+                    <span class="unit-card__no">{{ unit.roomNumber }}</span>
+                  </div>
+                  <pv-tag value="Ocupada" severity="success" class="text-xs" />
+                </div>
+                <div class="unit-card__body">
+                  <div
+                      class="unit-card__client-name"
+                      :title="getClientForUnit(unit)?.fullName || unit.ownerEmail"
+                  >
+                    {{ getClientForUnit(unit)?.fullName || unit.ownerEmail }}
+                  </div>
+                  <div
+                      v-if="getClientForUnit(unit)?.fullName"
+                      class="unit-card__client-email"
+                      :title="unit.ownerEmail"
+                  >
+                    {{ unit.ownerEmail }}
+                  </div>
+                </div>
+                <div class="unit-card__actions">
                   <pv-button
-                      icon="pi pi-check"
-                      severity="success"
+                      v-if="getClientForUnit(unit)"
+                      label="Ver Cliente"
+                      icon="pi pi-external-link"
+                      size="small"
+                      text
+                      class="p-0 text-xs"
+                      @click="goToClientProfile(getClientForUnit(unit).id)"
+                  />
+                  <span v-else></span>
+                  <pv-button
+                      icon="pi pi-times"
+                      severity="danger"
                       text
                       rounded
                       size="small"
                       :loading="savingUnit === unit.id"
-                      :disabled="!pendingOwnerEmails[unit.id]"
-                      @click="saveUnitOwner(unit)"
+                      title="Liberar Unidad"
+                      @click="confirmClearUnit(unit)"
                   />
                 </div>
               </div>
 
-              <!-- Edit mode: assigned unit shows its owner plus a clear action -->
-              <div v-else-if="editMode && unit.ownerEmail" class="unit-card unit-card--occupied unit-card--editrow-inline">
-                <span class="unit-card__no">{{ unit.roomNumber }}</span>
-                <span class="unit-card__email" :title="unit.ownerEmail">{{ unit.ownerEmail }}</span>
-                <pv-button
-                    icon="pi pi-times"
-                    severity="danger"
-                    text
-                    rounded
-                    size="small"
-                    :loading="savingUnit === unit.id"
-                    :title="t('common.clear') || 'Clear owner'"
-                    @click="clearUnitOwner(unit)"
-                />
-              </div>
-
-              <!-- View mode -->
+              <!-- Vacant unit -->
               <div
                   v-else
-                  class="unit-card"
-                  :class="unit.ownerEmail ? 'unit-card--occupied' : 'unit-card--vacant'"
-                  :title="unit.ownerEmail || t('projects.unitStatus.unassigned')"
+                  class="unit-card unit-card--vacant"
               >
                 <div class="unit-card__top">
-                  <i class="pi" :class="unit.ownerEmail ? 'pi-user' : 'pi-home'"></i>
-                  <span class="unit-card__no">{{ unit.roomNumber }}</span>
+                  <div class="flex align-items-center gap-2">
+                    <i class="pi pi-home"></i>
+                    <span class="unit-card__no">{{ unit.roomNumber }}</span>
+                  </div>
+                  <pv-tag value="Disponible" severity="info" class="text-xs" />
                 </div>
-                <span class="unit-card__status">{{ unit.ownerEmail || t('projects.unitStatus.vacant') }}</span>
+                <div class="unit-card__body">
+                  <span class="text-xs text-gray-400 italic">Sin propietario</span>
+                </div>
+                <div class="unit-card__actions">
+                  <pv-button
+                      label="Asignar Cliente"
+                      icon="pi pi-user-plus"
+                      size="small"
+                      text
+                      class="w-full text-xs p-0"
+                      @click="openAssignModal(unit)"
+                  />
+                </div>
               </div>
             </template>
           </div>
         </section>
-
-        <!-- Datalist providing suggestions from existing clients of this project -->
-        <datalist id="project-clients-list">
-          <option
-              v-for="c in projectClients"
-              :key="c.id"
-              :value="c.email"
-          >
-            {{ c.fullName }} ({{ c.email }})
-          </option>
-        </datalist>
       </div>
 
       <!-- Fallback while units load -->
@@ -420,6 +481,75 @@ async function clearUnitOwner(unit) {
       @click="navigateBack"
     />
   </div>
+
+  <!-- Assign Client Modal -->
+  <pv-dialog
+      v-model:visible="showAssignModal"
+      modal
+      :header="`Asignar Cliente - Unidad ${selectedUnitForAssign?.roomNumber || ''}`"
+      :style="{ width: '450px' }"
+  >
+    <div class="p-fluid">
+      <p class="text-sm text-gray-600 mb-3">
+        Selecciona un cliente registrado en este proyecto para asignarlo al departamento <strong>{{ selectedUnitForAssign?.roomNumber }}</strong>:
+      </p>
+
+      <div v-if="unassignedClients.length > 0" class="mb-3">
+        <label for="assignClientSelect" class="block text-sm font-semibold mb-2">Cliente *</label>
+        <pv-select
+            id="assignClientSelect"
+            v-model="selectedClientId"
+            :options="unassignedClients"
+            optionLabel="fullName"
+            optionValue="id"
+            placeholder="Selecciona un cliente..."
+            class="w-full"
+        >
+          <template #option="slotProps">
+            <div class="flex flex-column">
+              <span class="font-semibold">{{ slotProps.option.fullName }}</span>
+              <span class="text-xs text-gray-500">{{ slotProps.option.email }}</span>
+            </div>
+          </template>
+        </pv-select>
+      </div>
+
+      <div v-else class="p-3 bg-yellow-50 border-round border-1 border-yellow-200 mb-3">
+        <p class="text-sm text-yellow-800 m-0">
+          <i class="pi pi-exclamation-circle mr-1"></i>
+          Todos los clientes registrados en este proyecto ya tienen departamento asignado, o aún no has registrado clientes.
+        </p>
+      </div>
+
+      <div class="text-center mt-2">
+        <pv-button
+            label="+ Ir a registrar nuevo Cliente"
+            icon="pi pi-plus"
+            text
+            size="small"
+            @click="navigateToCreateClient"
+        />
+      </div>
+    </div>
+
+    <template #footer>
+      <pv-button
+          label="Cancelar"
+          icon="pi pi-times"
+          text
+          severity="secondary"
+          @click="showAssignModal = false"
+      />
+      <pv-button
+          label="Confirmar Asignación"
+          icon="pi pi-check"
+          severity="success"
+          :disabled="!selectedClientId || isAssigning"
+          :loading="isAssigning"
+          @click="assignClientToUnit"
+      />
+    </template>
+  </pv-dialog>
 
   <!-- Define Structure Dialog -->
   <DefineStructureDialog
@@ -712,97 +842,80 @@ async function clearUnitOwner(unit) {
 .unit-card {
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
-  padding: 0.6rem 0.75rem;
+  justify-content: space-between;
+  padding: 0.75rem 0.85rem;
   border: 1px solid #e5e7eb;
   border-radius: 0.6rem;
   background: #ffffff;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  min-height: 105px;
+}
+
+.unit-card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
 .unit-card__top {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
-}
-
-.unit-card__top .pi {
-  font-size: 0.8rem;
+  justify-content: space-between;
 }
 
 .unit-card__no {
   font-weight: 700;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   color: #111827;
 }
 
-.unit-card__status {
-  font-size: 0.72rem;
-  color: #9ca3af;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.unit-card__body {
+  margin: 0.35rem 0;
+  min-height: 28px;
 }
 
-/* Vacant unit — neutral. */
-.unit-card--vacant .pi {
+.unit-card__client-name {
+  font-weight: 600;
+  font-size: 0.82rem;
+  color: #1f2937;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.unit-card__client-email {
+  font-size: 0.72rem;
+  color: #6b7280;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.unit-card__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 0.35rem;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+/* Vacant unit — clean neutral. */
+.unit-card--vacant {
+  border-color: #e5e7eb;
+  background: #ffffff;
+}
+
+.unit-card--vacant .pi-home {
   color: #9ca3af;
+  font-size: 0.85rem;
 }
 
 /* Occupied unit — brand green accent. */
 .unit-card--occupied {
   border-color: #a7f3d0;
-  background: #ecfdf5;
+  background: #f0fdf4;
 }
 
-.unit-card--occupied .pi {
+.unit-card--occupied .pi-user {
   color: #059669;
-}
-
-.unit-card--occupied .unit-card__status {
-  color: #047857;
-  font-weight: 500;
-}
-
-/* Edit mode: vacant unit ready to receive an owner. */
-.unit-card--edit {
-  border-style: dashed;
-  border-color: #fcd34d;
-  background: #fffbeb;
-}
-
-.unit-card__editrow {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.unit-card__input {
-  flex: 1;
-  min-width: 0;
-  font-size: 0.75rem;
-}
-
-/* Edit mode: occupied unit laid out inline with a clear button. */
-.unit-card--editrow-inline {
-  flex-direction: row;
-  align-items: center;
-  gap: 0.4rem;
-}
-
-.unit-card__email {
-  flex: 1;
-  min-width: 0;
-  font-size: 0.72rem;
-  color: #047857;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-:deep(.unit-card__input.p-inputtext) {
-  width: 100%;
-  padding: 0.25rem 0.5rem;
-  font-size: 0.75rem;
+  font-size: 0.85rem;
 }
 </style>
