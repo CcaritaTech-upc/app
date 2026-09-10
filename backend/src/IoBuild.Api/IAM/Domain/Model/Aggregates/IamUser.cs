@@ -1,4 +1,4 @@
-namespace IoBuild.Api.Persistence;
+namespace IoBuild.Api.IAM.Domain.Model.Aggregates;
 
 /// <summary>
 /// IAM Domain aggregate. Physically lives under IAM/Domain/Model/Aggregates/

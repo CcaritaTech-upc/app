@@ -1,10 +1,10 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using IoBuild.Api.Persistence;
+using IoBuild.Api.IAM.Domain.Model.Aggregates;
 using Microsoft.IdentityModel.Tokens;
 
-namespace IoBuild.Api.Iam;
+namespace IoBuild.Api.IAM.Infrastructure.Tokens;
 
 /// <summary>
 /// IAM Infrastructure: JWT issuance. Depends only on IamUser aggregate.

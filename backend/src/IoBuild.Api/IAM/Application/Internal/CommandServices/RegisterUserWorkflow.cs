@@ -1,8 +1,11 @@
+using IoBuild.Api.IAM.Domain.Model.Aggregates;
+using IoBuild.Api.IAM.Domain.Model.Commands;
+using IoBuild.Api.IAM.Infrastructure.Hashing;
 using IoBuild.Api.Persistence;
 using IoBuild.Api.Workflows;
 using Microsoft.EntityFrameworkCore;
 
-namespace IoBuild.Api.Iam;
+namespace IoBuild.Api.IAM.Application.Internal.CommandServices;
 
 /// <summary>
 /// IAM Application: registration workflow (transactional outbox via IntegrationDispatch).

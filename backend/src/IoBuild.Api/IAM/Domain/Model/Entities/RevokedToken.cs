@@ -1,4 +1,4 @@
-namespace IoBuild.Api.Persistence;
+namespace IoBuild.Api.IAM.Domain.Model.Entities;
 
 public sealed class RevokedToken
 {

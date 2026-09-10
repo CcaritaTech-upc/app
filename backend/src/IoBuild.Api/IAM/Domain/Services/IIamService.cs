@@ -1,4 +1,6 @@
-namespace IoBuild.Api.Iam;
+using IoBuild.Api.IAM.Domain.Model.Commands;
+
+namespace IoBuild.Api.IAM.Domain.Services;
 
 /// <summary>
 /// IAM Domain service contract (DDD). IamService implements this.

@@ -1,4 +1,4 @@
-namespace IoBuild.Api.Iam;
+namespace IoBuild.Api.IAM.Domain.Model.Commands;
 
 /// <summary>
 /// IAM Domain: commands and results. Kept in IoBuild.Api.Iam namespace for

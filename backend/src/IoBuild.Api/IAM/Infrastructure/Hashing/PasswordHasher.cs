@@ -1,4 +1,4 @@
-namespace IoBuild.Api.Iam;
+namespace IoBuild.Api.IAM.Infrastructure.Hashing;
 
 /// <summary>
 /// IAM Infrastructure: hashing. BC-specific infrastructure concern.

@@ -1,4 +1,4 @@
-using IoBuild.Api.Iam;
+using IoBuild.Api.IAM.Domain.Model.Commands;
 
 namespace IoBuild.Api.IAM.Interfaces.REST.Transform;
 

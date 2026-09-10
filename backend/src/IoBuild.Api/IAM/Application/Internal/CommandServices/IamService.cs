@@ -1,10 +1,16 @@
 using System.Security.Cryptography;
 using System.Text;
+using IoBuild.Api.IAM.Domain.Model.Aggregates;
+using IoBuild.Api.IAM.Domain.Model.Commands;
+using IoBuild.Api.IAM.Domain.Model.Entities;
+using IoBuild.Api.IAM.Domain.Services;
+using IoBuild.Api.IAM.Infrastructure.Hashing;
+using IoBuild.Api.IAM.Infrastructure.Tokens;
 using IoBuild.Api.Persistence;
 using IoBuild.Api.Workflows;
 using Microsoft.EntityFrameworkCore;
 
-namespace IoBuild.Api.Iam;
+namespace IoBuild.Api.IAM.Application.Internal.CommandServices;
 
 /// <summary>
 /// IAM Application: service orchestrating sign-in / revocation. Stateless
@@ -14,7 +20,7 @@ public sealed class IamService(
     IoBuildDbContext dbContext,
     PasswordHasher passwordHasher,
     JwtTokenIssuer tokenIssuer,
-    IWorkflow<RegisterUser, int> registrationWorkflow)
+    IWorkflow<RegisterUser, int> registrationWorkflow) : IIamService
 {
     public async Task RegisterAsync(RegisterUser request, CancellationToken cancellationToken = default) =>
         await registrationWorkflow.ExecuteAsync(request, cancellationToken);

@@ -1,6 +1,6 @@
-using IoBuild.Api.Persistence;
+using IoBuild.Api.IAM.Domain.Model.Aggregates;
 
-namespace IoBuild.Api.Iam;
+namespace IoBuild.Api.IAM.Domain.Repositories;
 
 /// <summary>
 /// IAM Domain repository contract. IoBuildDbContext is the shared implementation
