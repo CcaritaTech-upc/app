@@ -9,5 +9,5 @@ public interface IMigrationRunner
 
 public sealed class EfMigrationRunner(IoBuildDbContext dbContext) : IMigrationRunner
 {
-    public Task ApplyAsync(CancellationToken cancellationToken) => dbContext.Database.MigrateAsync(cancellationToken);
+    public Task ApplyAsync(CancellationToken cancellationToken) => dbContext.Database.EnsureCreatedAsync(cancellationToken);
 }

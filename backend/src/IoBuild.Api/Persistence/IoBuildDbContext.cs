@@ -1,3 +1,4 @@
+using IoBuild.Api.Analytics.Domain.Model.Aggregates;
 using Microsoft.EntityFrameworkCore;
 
 namespace IoBuild.Api.Persistence;
@@ -26,9 +27,12 @@ public sealed class IoBuildDbContext(DbContextOptions<IoBuildDbContext> options)
     public DbSet<TelemetryRecovery> TelemetryRecoveries => Set<TelemetryRecovery>();
     public DbSet<UnitOwnerProjection> UnitOwnerProjections => Set<UnitOwnerProjection>();
     public DbSet<DeviceRegistryTombstone> DeviceRegistryTombstones => Set<DeviceRegistryTombstone>();
-    public DbSet<Analytics.DeviceProjection> DeviceProjections => Set<Analytics.DeviceProjection>();
-    public DbSet<Analytics.ProjectProjection> ProjectProjections => Set<Analytics.ProjectProjection>();
-    public DbSet<Analytics.UnitProjection> UnitProjections => Set<Analytics.UnitProjection>();
+    public DbSet<DeviceProjection> DeviceProjections => Set<DeviceProjection>();
+    public DbSet<ProjectProjection> ProjectProjections => Set<ProjectProjection>();
+    public DbSet<UnitProjection> UnitProjections => Set<UnitProjection>();
+    public DbSet<Unit> Units => Set<Unit>();
+    public DbSet<Client> Clients => Set<Client>();
+    public DbSet<Plan> Plans => Set<Plan>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -38,8 +42,11 @@ public sealed class IoBuildDbContext(DbContextOptions<IoBuildDbContext> options)
         // Per-BC configurations (delegated for readability, behavior identical)
         global::IoBuild.Api.IAM.Infrastructure.Persistence.EFC.Configuration.IamConfiguration.Configure(modelBuilder);
         global::IoBuild.Api.Publishing.Infrastructure.Persistence.EFC.Configuration.ProjectConfiguration.Configure(modelBuilder);
+        global::IoBuild.Api.Publishing.Infrastructure.Persistence.EFC.Configuration.UnitConfiguration.Configure(modelBuilder);
+        global::IoBuild.Api.Publishing.Infrastructure.Persistence.EFC.Configuration.ClientConfiguration.Configure(modelBuilder);
         global::IoBuild.Api.Profiles.Infrastructure.Persistence.EFC.Configuration.ProfileConfiguration.Configure(modelBuilder);
         global::IoBuild.Api.Subscriptions.Infrastructure.Persistence.EFC.Configuration.SubscriptionConfiguration.Configure(modelBuilder);
+        global::IoBuild.Api.Subscriptions.Infrastructure.Persistence.EFC.Configuration.PlanConfiguration.Configure(modelBuilder);
         global::IoBuild.Api.Devices.Infrastructure.Persistence.EFC.Configuration.DeviceConfiguration.Configure(modelBuilder);
         global::IoBuild.Api.Analytics.Infrastructure.Persistence.EFC.Configuration.AnalyticsConfiguration.Configure(modelBuilder);
     }
