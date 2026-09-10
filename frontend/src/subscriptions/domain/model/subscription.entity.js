@@ -8,6 +8,7 @@ export class Subscription {
     constructor({
         id = 0,
         builderId = 0,
+        planId = 0,
         plan = null,
         status = '',
         startDate = null,
@@ -15,6 +16,7 @@ export class Subscription {
     }) {
         this.id = id;
         this.builderId = builderId;
+        this.planId = planId || (plan ? plan.id : 0);
         this.plan = plan; // This is now a Plan object
         this.status = status;
         this.startDate = startDate;

@@ -14,13 +14,13 @@ export class SubscriptionApi extends BaseApi {
 
     async getSubscriptionByBuilderId(builderId) {
         const response = await this.#subscriptionsEndpoint.getAll();
-        const allSubscriptions = response.data;
+        const allSubscriptions = Array.isArray(response.data) ? response.data : [];
         // A builder can accumulate more than one subscription row over time
-        // (e.g. cancel + renew); take the most recently started one.
-        const mostRecent = allSubscriptions
-            .filter(s => s.builderId === builderId)
-            .sort((a, b) => new Date(b.startDate) - new Date(a.startDate))[0];
-        return { data: mostRecent };
+        // (e.g. cancel + renew); take the most recently started one for this builder.
+        const builderSubs = allSubscriptions.filter(s => Number(s.builderId) === Number(builderId));
+        const activeSub = builderSubs.find(s => String(s.status).toLowerCase() === 'active');
+        const mostRecent = activeSub || builderSubs.sort((a, b) => new Date(b.startDate) - new Date(a.startDate))[0];
+        return { data: mostRecent || null };
     }
 
     getSubscriptionById(id) {

@@ -9,6 +9,7 @@ export class Plan {
         price = 0,
         description = '',
         features = [],
+        featuresJson = '',
         maxDevices = 0,
         maxAdministrators = 0,
         supportLevel = '',
@@ -19,7 +20,26 @@ export class Plan {
         this.name = name;
         this.price = price;
         this.description = description;
-        this.features = features;
+        this.featuresJson = featuresJson;
+
+        let parsedFeatures = [];
+        if (Array.isArray(features) && features.length > 0) {
+            parsedFeatures = features;
+        } else if (typeof featuresJson === 'string' && featuresJson.trim()) {
+            try {
+                parsedFeatures = JSON.parse(featuresJson);
+            } catch (_) {
+                parsedFeatures = [];
+            }
+        } else if (typeof features === 'string' && features.trim()) {
+            try {
+                parsedFeatures = JSON.parse(features);
+            } catch (_) {
+                parsedFeatures = [];
+            }
+        }
+        this.features = Array.isArray(parsedFeatures) ? parsedFeatures : [];
+
         this.maxDevices = maxDevices;
         this.maxAdministrators = maxAdministrators;
         this.supportLevel = supportLevel;

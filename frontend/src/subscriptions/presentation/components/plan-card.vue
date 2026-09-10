@@ -1,14 +1,36 @@
 <script setup>
+import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 
 const { t } = useI18n();
 
-defineProps({
+const props = defineProps({
   plan: { type: Object, required: true },
   isProcessing: { type: Boolean, default: false }
 });
 
 defineEmits(['select']);
+
+const planFeatures = computed(() => {
+  const p = props.plan;
+  if (!p) return [];
+  if (Array.isArray(p.features) && p.features.length > 0) {
+    return p.features;
+  }
+  if (typeof p.featuresJson === 'string' && p.featuresJson.trim()) {
+    try {
+      const parsed = JSON.parse(p.featuresJson);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    } catch (_) {}
+  }
+  if (typeof p.features === 'string' && p.features.trim()) {
+    try {
+      const parsed = JSON.parse(p.features);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    } catch (_) {}
+  }
+  return [];
+});
 </script>
 
 <template>
@@ -22,12 +44,12 @@ defineEmits(['select']);
     </h3>
     <p class="text-gray-600 mb-4">{{ plan.description }}</p>
     <p class="text-2xl font-bold text-gray-900 mb-4">
-      {{ plan.getFormattedPrice() }}
+      {{ typeof plan.getFormattedPrice === 'function' ? plan.getFormattedPrice() : `$${plan.price}` }}
       <span class="text-base font-normal text-gray-600">/{{ t("subscriptions.month") }}</span>
     </p>
     <ul class="flex flex-column gap-2">
       <li
-        v-for="(feature, i) in plan.features"
+        v-for="(feature, i) in planFeatures"
         :key="i"
         class="flex align-items-start text-gray-700"
       >

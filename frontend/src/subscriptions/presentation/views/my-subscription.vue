@@ -164,20 +164,21 @@ const handlePayPlan = async (plan) => {
 
     const { data } = await subscriptionApi.createCheckoutSession(builderId, plan.id);
 
-    // El backend devuelve CheckoutUrl (con C mayúscula) según PaymentSessionResource
-    if (data.checkoutUrl || data.CheckoutUrl) {
-      window.location.href = data.checkoutUrl || data.CheckoutUrl;
+    // El backend puede devolver checkoutUrl o url según la versión
+    const redirectUrl = data.checkoutUrl || data.CheckoutUrl || data.url || data.Url;
+    if (redirectUrl) {
+      window.location.href = redirectUrl;
       return;
     }
 
     // Si el backend devuelve un sessionId, usar redirectToCheckout
-    if (data.sessionId || data.SessionId) {
+    const sessionId = data.sessionId || data.SessionId || data.id || data.Id;
+    if (sessionId) {
       const stripe = await stripePromise;
       if (!stripe) {
         throw new Error('Stripe no se pudo inicializar');
       }
 
-      const sessionId = data.sessionId || data.SessionId;
       const { error } = await stripe.redirectToCheckout({ sessionId });
       if (error) {
         console.error('Stripe redirect error:', error);
@@ -379,12 +380,17 @@ li {
 }
 
 .plan-cards-container {
-  display: -webkit-box;
-  -webkit-box-orient: horizontal;
-  -webkit-box-direction: normal;
-  -webkit-box-pack: justify;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: stretch;
   gap: 1rem;
   width: 100%;
+}
+
+.plan-cards-container > * {
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 /* ---------- MEDIA QUERIES ---------- */

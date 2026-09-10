@@ -15,7 +15,10 @@ export class PlanApi extends BaseApi {
      * Get all available plans
      */
     getAllPlans() {
-        return this.#plansEndpoint.getAll();
+        return this.http.get(plansEndpointPath, {
+            params: { _t: Date.now() },
+            headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' }
+        });
     }
 
     /**

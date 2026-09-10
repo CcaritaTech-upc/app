@@ -13,6 +13,7 @@ export class SubscriptionAssembler {
         return new Subscription({
             id: resource.id,
             builderId: resource.builderId,
+            planId: resource.planId || (resource.plan ? resource.plan.id : 0),
             plan: resource.plan ? PlanAssembler.toEntityFromResource(resource.plan) : null,
             status: resource.status,
             startDate: resource.startDate,

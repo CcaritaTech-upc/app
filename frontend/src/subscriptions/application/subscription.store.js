@@ -43,15 +43,18 @@ export const useSubscriptionStore = defineStore("subscriptions", () => {
     }
 
     const currentPlan = computed(() => {
-        if (!currentSubscription.value || !currentSubscription.value.plan) return null;
-        return currentSubscription.value.plan;
+        if (!currentSubscription.value) return null;
+        if (currentSubscription.value.plan) return currentSubscription.value.plan;
+        if (currentSubscription.value.planId && availablePlans.value.length > 0) {
+            return availablePlans.value.find(p => p.id === currentSubscription.value.planId) || null;
+        }
+        return null;
     });
 
     const otherPlans = computed(() => {
-        if (!currentSubscription.value || !currentSubscription.value.plan) return availablePlans.value;
-        return availablePlans.value.filter(plan =>
-            plan.id !== currentSubscription.value.plan.id
-        );
+        const plan = currentPlan.value;
+        if (!plan) return availablePlans.value;
+        return availablePlans.value.filter(p => p.id !== plan.id);
     });
 
     function fetchCurrentSubscription() {

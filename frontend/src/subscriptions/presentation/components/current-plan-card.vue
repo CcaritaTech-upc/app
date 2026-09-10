@@ -1,15 +1,37 @@
 <script setup>
+import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 
 const { t } = useI18n();
 
-defineProps({
+const props = defineProps({
   plan: { type: Object, required: true },
   subscription: { type: Object, required: true },
   isProcessing: { type: Boolean, default: false }
 });
 
 defineEmits(['renew', 'cancel']);
+
+const planFeatures = computed(() => {
+  const p = props.plan;
+  if (!p) return [];
+  if (Array.isArray(p.features) && p.features.length > 0) {
+    return p.features;
+  }
+  if (typeof p.featuresJson === 'string' && p.featuresJson.trim()) {
+    try {
+      const parsed = JSON.parse(p.featuresJson);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    } catch (_) {}
+  }
+  if (typeof p.features === 'string' && p.features.trim()) {
+    try {
+      const parsed = JSON.parse(p.features);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    } catch (_) {}
+  }
+  return [];
+});
 </script>
 
 <template>
@@ -20,7 +42,7 @@ defineEmits(['renew', 'cancel']);
 
     <div class="mb-6">
       <p class="text-4xl text-gray-900 mb-3 plan-price">
-        {{ plan.getFormattedPrice() }}
+        {{ typeof plan.getFormattedPrice === 'function' ? plan.getFormattedPrice() : `$${plan.price}` }}
         <span class="text-lg font-normal text-gray-600">/{{ t("subscriptions.month") }}</span>
       </p>
       <p class="text-base text-gray-600" v-if="subscription.status">
@@ -33,7 +55,7 @@ defineEmits(['renew', 'cancel']);
 
     <ul class="flex flex-column gap-3 mb-8">
       <li
-        v-for="(feature, i) in plan.features"
+        v-for="(feature, i) in planFeatures"
         :key="i"
         class="flex align-items-start text-gray-700 text-lg"
       >
