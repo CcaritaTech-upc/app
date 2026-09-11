@@ -2,6 +2,7 @@ using System.Text.Json;
 using IoBuild.Api.Devices.Application.Internal.CommandServices;
 using IoBuild.Api.Devices.Domain.Model.Catalog;
 using IoBuild.Api.Persistence;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace IoBuild.Api.Devices.Interfaces.REST;
@@ -26,7 +27,13 @@ public static class DevicesEndpoints
 
         group.MapGet("/devices/types", () => Results.Ok(deviceTypesResult)).AllowAnonymous();
         group.MapGet("/custom-device-types", () => Results.Ok(deviceTypesResult)).AllowAnonymous();
-        group.MapGet("/devices", async (IoBuildDbContext db, CancellationToken ct) => Results.Ok((await db.Devices.OrderBy(device => device.Id).ToListAsync(ct)).Select(DeviceResponse.From))).RequireAuthorization();
+        group.MapGet("/devices", async ([FromQuery] int? unitId, [FromQuery] int? projectId, IoBuildDbContext db, CancellationToken ct) =>
+        {
+            var query = db.Devices.AsQueryable();
+            if (unitId.HasValue) query = query.Where(d => d.UnitId == unitId.Value);
+            if (projectId.HasValue) query = query.Where(d => d.ProjectId == projectId.Value);
+            return Results.Ok((await query.OrderBy(device => device.Id).ToListAsync(ct)).Select(DeviceResponse.From));
+        }).RequireAuthorization();
         group.MapGet("/devices/{id:int}", async (int id, IoBuildDbContext db, CancellationToken ct) => await db.Devices.FindAsync([id], ct) is { } device ? Results.Ok(DeviceResponse.From(device)) : Results.NotFound()).RequireAuthorization();
         group.MapPost("/devices", async (CreateDeviceRequest request, System.Security.Claims.ClaimsPrincipal user, IoBuildDbContext db, DeviceRegistryService registry, CancellationToken ct) =>
         {

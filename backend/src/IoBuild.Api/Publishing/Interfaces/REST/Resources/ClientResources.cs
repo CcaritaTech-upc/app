@@ -11,7 +11,8 @@ public record ClientResource(
     string? PhoneNumber = null,
     string? Address = null,
     int? UnitId = null,
-    string? UnitNumber = null);
+    string? UnitNumber = null,
+    int DeviceCount = 0);
 
 public record CreateClientResource(
     string FullName,

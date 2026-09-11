@@ -5,7 +5,7 @@ namespace IoBuild.Api.Publishing.Interfaces.REST.Transform;
 
 public static class ClientResourceFromEntityAssembler
 {
-    public static ClientResource ToResourceFromEntity(Client entity)
+    public static ClientResource ToResourceFromEntity(Client entity, int deviceCount = 0)
     {
         return new ClientResource(
             entity.Id,
@@ -18,6 +18,7 @@ public static class ClientResourceFromEntityAssembler
             entity.PhoneNumber,
             entity.Address,
             entity.UnitId,
-            entity.UnitNumber);
+            entity.UnitNumber,
+            deviceCount);
     }
 }

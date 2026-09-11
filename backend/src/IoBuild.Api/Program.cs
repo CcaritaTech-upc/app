@@ -332,7 +332,7 @@ public sealed record ReplaceProfilePhotoRequest(string ExpectedReference, string
 public sealed record ProjectStructureRequest(int Floors, int UnitsPerFloor, List<int>? FloorNumbers);
 public sealed record CreateDeviceRequest(string Name, string Type, string Location, string? MacAddress, int ProjectId, string Status, int? UnitId = null);
 public sealed record DeviceCommandRequest(string Attribute, JsonElement Value);
-public sealed record DeviceResponse(int Id, string Name, string Type, string Location, string? MacAddress, int ProjectId, string Status)
+public sealed record DeviceResponse(int Id, string Name, string Type, string Location, string? MacAddress, int ProjectId, string Status, int? UnitId = null)
 {
-    public static DeviceResponse From(Device device) => new(device.Id, device.Name, device.Type, device.Location, device.MacAddress, device.ProjectId, device.Status);
+    public static DeviceResponse From(Device device) => new(device.Id, device.Name, device.Type, device.Location, device.MacAddress, device.ProjectId, device.Status, device.UnitId);
 }

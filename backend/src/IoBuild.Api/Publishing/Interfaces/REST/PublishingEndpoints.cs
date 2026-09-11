@@ -185,7 +185,7 @@ public static class PublishingEndpoints
         // ── Clients Endpoints ──
         var clients = app.MapGroup("/api/v1/clients").WithTags("Clients");
 
-        clients.MapGet("", async ([FromQuery] int? builderId, [FromQuery] int? projectId, IClientQueryService queryService, CancellationToken ct) =>
+        clients.MapGet("", async ([FromQuery] int? builderId, [FromQuery] int? projectId, IClientQueryService queryService, IoBuildDbContext db, CancellationToken ct) =>
         {
             IEnumerable<Client> clientList;
             if (builderId.HasValue)
@@ -200,13 +200,34 @@ public static class PublishingEndpoints
             {
                 clientList = await queryService.Handle(new GetAllClientsQuery(), ct);
             }
-            return Results.Ok(clientList.Select(ClientResourceFromEntityAssembler.ToResourceFromEntity));
+
+            var clientsArray = clientList.ToList();
+            var unitIds = clientsArray.Where(c => c.UnitId.HasValue).Select(c => c.UnitId!.Value).Distinct().ToList();
+            var deviceCounts = unitIds.Count > 0
+                ? await db.Devices
+                    .Where(d => d.UnitId.HasValue && unitIds.Contains(d.UnitId.Value))
+                    .GroupBy(d => d.UnitId!.Value)
+                    .Select(g => new { UnitId = g.Key, Count = g.Count() })
+                    .ToDictionaryAsync(g => g.UnitId, g => g.Count, ct)
+                : new Dictionary<int, int>();
+
+            var result = clientsArray.Select(c =>
+            {
+                var count = c.UnitId.HasValue && deviceCounts.TryGetValue(c.UnitId.Value, out var val) ? val : 0;
+                return ClientResourceFromEntityAssembler.ToResourceFromEntity(c, count);
+            });
+
+            return Results.Ok(result);
         }).RequireAuthorization();
 
-        clients.MapGet("/{id:int}", async (int id, IClientQueryService queryService, CancellationToken ct) =>
+        clients.MapGet("/{id:int}", async (int id, IClientQueryService queryService, IoBuildDbContext db, CancellationToken ct) =>
         {
             var client = await queryService.Handle(new GetClientByIdQuery(id), ct);
-            return client is null ? Results.NotFound() : Results.Ok(ClientResourceFromEntityAssembler.ToResourceFromEntity(client));
+            if (client is null) return Results.NotFound();
+            var deviceCount = client.UnitId.HasValue
+                ? await db.Devices.CountAsync(d => d.UnitId == client.UnitId.Value, ct)
+                : 0;
+            return Results.Ok(ClientResourceFromEntityAssembler.ToResourceFromEntity(client, deviceCount));
         }).RequireAuthorization();
 
         clients.MapPost("", async (CreateClientResource resource, IClientCommandService commandService, IClientQueryService queryService, CancellationToken ct) =>
