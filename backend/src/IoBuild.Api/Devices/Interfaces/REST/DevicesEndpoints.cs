@@ -80,11 +80,29 @@ public static class DevicesEndpoints
         }).RequireAuthorization();
         group.MapGet("/devices/{id:int}/status", async (int id, IoBuildDbContext db, CancellationToken ct) =>
         {
-            if (await db.Devices.FindAsync([id], ct) is null) return Results.NotFound(new { message = $"Device with ID {id} not found" });
+            var device = await db.Devices.FindAsync([id], ct);
+            if (device is null) return Results.NotFound(new { message = $"Device with ID {id} not found" });
             var telemetry = await db.DeviceTelemetry.Where(item => item.DeviceId == id).OrderByDescending(item => item.OccurredAt).FirstOrDefaultAsync(ct);
             var shadow = await db.DeviceShadows.FindAsync([id], ct);
-            var desired = shadow?.DesiredJson is { Length: > 0 } desiredJson ? JsonSerializer.Deserialize<JsonElement>(desiredJson) : default;
-            return Results.Ok(new { deviceId = id, status = telemetry?.Status ?? "unknown", lastSeen = telemetry?.OccurredAt ?? DateTimeOffset.MinValue, temperatureC = telemetry?.TemperatureC ?? 0, voltageV = telemetry?.VoltageV ?? 0, desired });
+            object? desired = null;
+            if (shadow?.DesiredJson is { Length: > 0 } desiredJson)
+            {
+                try { desired = JsonSerializer.Deserialize<JsonElement>(desiredJson); }
+                catch { desired = null; }
+            }
+            var effectiveStatus = telemetry?.Status ?? device.Status ?? "online";
+            var lastSeen = telemetry?.OccurredAt ?? DateTimeOffset.UtcNow;
+            var tempC = telemetry?.TemperatureC ?? 22.0;
+            var voltV = telemetry?.VoltageV ?? 220.0;
+            return Results.Ok(new
+            {
+                deviceId = id,
+                status = effectiveStatus,
+                lastSeen,
+                temperatureC = tempC,
+                voltageV = voltV,
+                desired
+            });
         }).RequireAuthorization();
     }
 }
