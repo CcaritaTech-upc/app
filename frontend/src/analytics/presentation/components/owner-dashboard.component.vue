@@ -104,13 +104,17 @@ const telemetryChartOptions = {
 };
 
 const getStatusSeverity = (status) => {
-  if (isOnlineStatus(status)) return 'success';
+  const s = String(status ?? '').trim().toLowerCase();
+  if (s === 'online' || s === 'active') return 'success';
+  if (s === 'idle' || s === 'standby') return 'warn';
   if (status) return 'danger';
   return 'info'; // unknown / empty
 };
 
 const getStatusLabel = (status) => {
-  if (isOnlineStatus(status)) return t('devices.status.online');
+  const s = String(status ?? '').trim().toLowerCase();
+  if (s === 'online' || s === 'active') return t('devices.status.online');
+  if (s === 'idle' || s === 'standby') return 'Standby';
   if (status) return t('devices.status.offline');
   return t('devices.telemetry.unknown');
 };

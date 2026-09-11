@@ -7,9 +7,11 @@ export const DeviceStatus = Object.freeze({
     ONLINE: 'Online',
     OFFLINE: 'Offline',
     ACTIVE: 'active',
+    IDLE: 'idle',
+    STANDBY: 'standby',
 });
 
-export const ONLINE_STATUSES = Object.freeze(['online', 'active']);
+export const ONLINE_STATUSES = Object.freeze(['online', 'active', 'idle', 'standby']);
 
 /**
  * Returns true if status is an online-equivalent value (case-insensitive, trimmed).

@@ -27,7 +27,7 @@ public interface IAnalyticsQueryService
 
 public sealed class AnalyticsQueryService : IAnalyticsQueryService
 {
-    private static readonly HashSet<string> OnlineStatuses = new(StringComparer.OrdinalIgnoreCase) { "online", "active" };
+    private static readonly HashSet<string> OnlineStatuses = new(StringComparer.OrdinalIgnoreCase) { "online", "active", "idle", "standby" };
     private static bool IsOnline(string? status) => OnlineStatuses.Contains((status ?? string.Empty).Trim());
 
     private readonly IoBuildDbContext _db;
@@ -47,7 +47,33 @@ public sealed class AnalyticsQueryService : IAnalyticsQueryService
     {
         if (devices.Count == 0) return new Dictionary<int, string>();
         var liveStatuses = await _liveDeviceStatusService.GetLatestStatusesAsync(devices.Select(d => d.DeviceId.ToString()), ct);
-        return devices.ToDictionary(d => d.DeviceId, d => liveStatuses.GetValueOrDefault(d.DeviceId.ToString(), d.Status));
+        var result = new Dictionary<int, string>();
+        var missingIds = new List<int>();
+        foreach (var d in devices)
+        {
+            if (liveStatuses.TryGetValue(d.DeviceId.ToString(), out var s) && !string.IsNullOrWhiteSpace(s))
+            {
+                result[d.DeviceId] = s;
+            }
+            else
+            {
+                missingIds.Add(d.DeviceId);
+            }
+        }
+        if (missingIds.Count > 0)
+        {
+            var latestTelemetry = await _db.DeviceTelemetry
+                .Where(t => missingIds.Contains(t.DeviceId))
+                .GroupBy(t => t.DeviceId)
+                .Select(g => g.OrderByDescending(t => t.OccurredAt).Select(t => new { t.DeviceId, t.Status }).FirstOrDefault())
+                .ToListAsync(ct);
+            var teleMap = latestTelemetry.Where(x => x != null).ToDictionary(x => x!.DeviceId, x => x!.Status);
+            foreach (var d in devices.Where(d => missingIds.Contains(d.DeviceId)))
+            {
+                result[d.DeviceId] = teleMap.GetValueOrDefault(d.DeviceId, d.Status);
+            }
+        }
+        return result;
     }
 
     public async Task<BuilderMetrics?> Handle(GetBuilderDashboardQuery query, CancellationToken ct = default)
