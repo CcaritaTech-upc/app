@@ -75,8 +75,9 @@ public sealed class MqttDeviceTransport(Microsoft.Extensions.Configuration.IConf
     public async Task StopAsync(CancellationToken cancellationToken) { stopping = true; if (client.IsConnected) await client.DisconnectAsync(new MQTTnet.MqttClientDisconnectOptions(), cancellationToken); }
     public async Task PublishAsync(string topic, string payload, bool qos1, bool retain, CancellationToken cancellationToken = default)
     {
+        if (!configuration.GetValue<bool>("Mqtt:Enabled")) return;
         if (!client.IsConnected) await StartAsync(cancellationToken);
-        if (!client.IsConnected) throw new HttpRequestException("MQTT is not configured.");
+        if (!client.IsConnected) throw new HttpRequestException("MQTT is not configured or unavailable.");
         var message = new MQTTnet.MqttApplicationMessageBuilder().WithTopic(topic).WithPayload(payload).WithQualityOfServiceLevel(qos1 ? MQTTnet.Protocol.MqttQualityOfServiceLevel.AtLeastOnce : MQTTnet.Protocol.MqttQualityOfServiceLevel.AtMostOnce).WithRetainFlag(retain).Build();
         await client.PublishAsync(message, cancellationToken);
     }
