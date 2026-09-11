@@ -132,6 +132,28 @@ public sealed class AnalyticsTests
         Assert.Contains(metrics.DeviceHealthStatus, d => d.DeviceName == "Light 1");
     }
 
+    [Fact]
+    [Trait("Category", "Analytics")]
+    public async Task OwnerDashboard_self_heals_missing_projections_from_real_units_and_devices()
+    {
+        await using var db = Db();
+        db.Projects.Add(new IoBuild.Api.Publishing.Domain.Model.Aggregates.Project { Id = 5, BuilderId = 10, Name = "Highland Tower" });
+        db.Units.Add(new IoBuild.Api.Publishing.Domain.Model.Aggregates.Unit(5, "501", null, 5, "501") { Id = 80, OwnerId = 60, OwnerEmail = "owner60@test.com", Status = "occupied" });
+        db.Devices.Add(new IoBuild.Api.Devices.Domain.Model.Aggregates.Device { Id = 77, Name = "Bedroom Light", Type = "SmartLight", ProjectId = 5, UnitId = 80, OwnerId = 60, Status = "online" });
+        await db.SaveChangesAsync();
+
+        // Note: No UnitProjections, DeviceProjections, or ProjectProjections were seeded!
+        var service = new AnalyticsQueryService(db, new FakeLiveEnergyService(), new FakeLiveDeviceStatusService());
+        var metrics = await service.Handle(new GetOwnerDashboardQuery(60));
+
+        Assert.NotNull(metrics);
+        Assert.Equal(1, metrics!.MyUnitsCount);
+        Assert.Equal(1, metrics.TotalDevices);
+        Assert.Equal(1, metrics.OnlineDevices);
+        Assert.Single(metrics.MyUnitsDetails);
+        Assert.Equal("Highland Tower", metrics.MyUnitsDetails[0]["projectName"]);
+    }
+
     // ── Live energy aggregation ──
 
     [Fact]

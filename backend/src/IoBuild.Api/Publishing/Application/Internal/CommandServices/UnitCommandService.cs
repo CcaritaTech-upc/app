@@ -60,6 +60,19 @@ public class UnitCommandService : IUnitCommandService
                 existingProjection.OwnerUserId = resolvedOwnerId.Value;
                 existingProjection.UpdatedAt = DateTimeOffset.UtcNow;
             }
+
+            // Also synchronize devices in this unit to the assigned owner
+            var unitDevices = await _dbContext.Devices.Where(d => d.UnitId == unit.Id).ToListAsync(ct);
+            foreach (var d in unitDevices)
+            {
+                d.OwnerId = resolvedOwnerId.Value;
+                var dp = await _dbContext.DeviceProjections.FirstOrDefaultAsync(p => p.DeviceId == d.Id, ct);
+                if (dp is not null)
+                {
+                    dp.OwnerUserId = resolvedOwnerId.Value;
+                    dp.LastEventAt = DateTime.UtcNow;
+                }
+            }
         }
         else if (existingProjection is not null)
         {

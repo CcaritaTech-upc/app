@@ -246,6 +246,24 @@ public sealed class IoTParityCorrectionTests
         Assert.Single(await db.DeviceCommands.ToListAsync());
     }
 
+    [Fact]
+    [Trait("Category", "IoT")]
+    public async Task Owner_command_self_heals_device_owner_id_when_unit_is_owned_by_requesting_user()
+    {
+        await using var db = Db();
+        // Device was created by builder so OwnerId is 99 (not owner 2)
+        db.Devices.Add(new Device { Id = 45, Name = "Unit light", Type = "SmartLight", Location = "U", ProjectId = 1, UnitId = 71, OwnerId = 99, Status = "online" });
+        db.UnitOwnerProjections.Add(new UnitOwnerProjection { UnitId = 71, OwnerUserId = 2 });
+        await db.SaveChangesAsync();
+        var commands = new DeviceCommandService(db, new Publisher());
+
+        // Even though device.OwnerId was 99, since Owner 2 owns unit 71, it self-heals and authorizes!
+        await commands.SendAuthorizedAsync(45, 2, "Owner", "brightness", JsonSerializer.SerializeToElement(75));
+        var dev = await db.Devices.FindAsync(45);
+        Assert.Equal(2, dev!.OwnerId);
+        Assert.Single(await db.DeviceCommands.ToListAsync());
+    }
+
     private static IoBuildDbContext Db() => new(new DbContextOptionsBuilder<IoBuildDbContext>().UseInMemoryDatabase(Guid.NewGuid().ToString()).Options);
     private sealed class Publisher : IDeviceMqttPublisher { public Task PublishAsync(string topic, string payload, bool qos1, bool retain, CancellationToken cancellationToken = default) => Task.CompletedTask; }
 }

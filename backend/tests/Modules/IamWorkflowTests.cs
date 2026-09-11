@@ -43,9 +43,23 @@ public sealed class IamWorkflowTests
     public async Task Registration_auto_links_assigned_units_and_projections()
     {
         await using var db = CreateDb();
-        var unit = new IoBuild.Api.Publishing.Domain.Model.Aggregates.Unit(1, "204", null, 2, "204");
+        db.Projects.Add(new IoBuild.Api.Publishing.Domain.Model.Aggregates.Project { Id = 1, BuilderId = 10, Name = "Sunset Heights" });
+        var unit = new IoBuild.Api.Publishing.Domain.Model.Aggregates.Unit(1, "204", null, 2, "204") { Id = 15 };
         unit.AssignOwner("owner.auto@example.com", null);
         db.Units.Add(unit);
+
+        var device = new IoBuild.Api.Devices.Domain.Model.Aggregates.Device
+        {
+            Id = 101,
+            Name = "Living Room AC",
+            Type = "AirConditioner",
+            ProjectId = 1,
+            UnitId = 15,
+            OwnerId = 0,
+            Status = "online"
+        };
+        db.Devices.Add(device);
+
         db.UnitProjections.Add(new IoBuild.Api.Analytics.Domain.Model.Aggregates.UnitProjection
         {
             UnitId = unit.Id,
@@ -68,6 +82,58 @@ public sealed class IamWorkflowTests
 
         var unitProj = await db.UnitProjections.SingleAsync(p => p.UnitId == unit.Id);
         Assert.Equal(user.Id, unitProj.OwnerUserId);
+
+        var updatedDevice = await db.Devices.SingleAsync(d => d.Id == 101);
+        Assert.Equal(user.Id, updatedDevice.OwnerId);
+
+        var devProj = await db.DeviceProjections.SingleAsync(dp => dp.DeviceId == 101);
+        Assert.Equal(user.Id, devProj.OwnerUserId);
+
+        var projProj = await db.ProjectProjections.SingleAsync(p => p.ProjectId == 1);
+        Assert.Equal("Sunset Heights", projProj.Name);
+    }
+
+    [Fact]
+    [Trait("Category", "IAM")]
+    public async Task Registration_auto_links_when_assigned_via_client_and_creates_missing_unit_projection()
+    {
+        await using var db = CreateDb();
+        db.Projects.Add(new IoBuild.Api.Publishing.Domain.Model.Aggregates.Project { Id = 2, BuilderId = 10, Name = "Ocean Tower" });
+        var unit = new IoBuild.Api.Publishing.Domain.Model.Aggregates.Unit(2, "301", null, 3, "301") { Id = 20 };
+        db.Units.Add(unit);
+
+        db.Clients.Add(new IoBuild.Api.Publishing.Domain.Model.Aggregates.Client(
+            "Carlos Lopez", "Ocean Tower", "Pending", 10, 2, "carlos@example.com", "999888777", "Av. Mar 123", 20, "301"));
+
+        var light = new IoBuild.Api.Devices.Domain.Model.Aggregates.Device
+        {
+            Id = 202,
+            Name = "Hallway Light",
+            Type = "SmartLight",
+            ProjectId = 2,
+            UnitId = 20,
+            OwnerId = 0,
+            Status = "online"
+        };
+        db.Devices.Add(light);
+        await db.SaveChangesAsync();
+
+        var service = CreateIamService(db);
+        await service.RegisterAsync(new RegisterUser("carlos@example.com", "secure456", "Owner"));
+
+        var user = await db.IamUsers.SingleAsync(u => u.Email == "carlos@example.com");
+        var updatedUnit = await db.Units.SingleAsync(u => u.Id == 20);
+        Assert.Equal(user.Id, updatedUnit.OwnerId);
+
+        var unitProj = await db.UnitProjections.SingleAsync(p => p.UnitId == 20);
+        Assert.Equal(user.Id, unitProj.OwnerUserId);
+        Assert.Equal("occupied", unitProj.Status);
+
+        var updatedLight = await db.Devices.SingleAsync(d => d.Id == 202);
+        Assert.Equal(user.Id, updatedLight.OwnerId);
+
+        var devProj = await db.DeviceProjections.SingleAsync(dp => dp.DeviceId == 202);
+        Assert.Equal(user.Id, devProj.OwnerUserId);
     }
 
     [Fact]

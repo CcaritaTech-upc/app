@@ -32,7 +32,18 @@ public sealed class DeviceCommandService(IoBuildDbContext db, IDeviceMqttPublish
     private async Task<DeviceCommand> SendLockedAsync(int deviceId, int requestingOwnerId, string attribute, JsonElement value, CancellationToken cancellationToken)
     {
         var device = await db.Devices.FindAsync([deviceId], cancellationToken) ?? throw new KeyNotFoundException("Device not found.");
-        if (device.OwnerId != requestingOwnerId) throw new UnauthorizedAccessException("Device owner is required.");
+        if (device.OwnerId != requestingOwnerId)
+        {
+            if (device.UnitId.HasValue && await db.UnitOwnerProjections.AnyAsync(item => item.UnitId == device.UnitId.Value && item.OwnerUserId == requestingOwnerId, cancellationToken))
+            {
+                device.OwnerId = requestingOwnerId;
+                await db.SaveChangesAsync(cancellationToken);
+            }
+            else
+            {
+                throw new UnauthorizedAccessException("Device owner is required.");
+            }
+        }
         ValidateCommand(device.Type, attribute, value);
         var shadow = await db.DeviceShadows.FindAsync([deviceId], cancellationToken);
         var desired = shadow?.DesiredJson is { Length: > 0 } json ? JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json) ?? [] : [];

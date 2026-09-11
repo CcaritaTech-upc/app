@@ -17,6 +17,38 @@ public static class IamEndpoints
         group.MapPost("/users", async (RegisterUser request, IamService iam, CancellationToken ct) => { await iam.RegisterAsync(request, ct); return Results.Created("/api/v1/users", new { message = "User created successfully." }); }).AllowAnonymous();
         group.MapPost("/authentication/sign-up", async (RegisterUser request, IamService iam, CancellationToken ct) => { await iam.RegisterAsync(request, ct); return Results.Created("/api/v1/authentication/sign-up", new { message = "User created successfully." }); }).AllowAnonymous();
 
+        group.MapGet("/authentication/invitation", async (string? email, IoBuildDbContext db, CancellationToken ct) =>
+        {
+            if (string.IsNullOrWhiteSpace(email)) return Results.Ok(new { assigned = false });
+            var normalized = email.Trim().ToLowerInvariant();
+
+            var client = await db.Clients
+                .FirstOrDefaultAsync(c => !string.IsNullOrEmpty(c.Email) && c.Email.ToLower() == normalized, ct);
+
+            var unit = await db.Units
+                .FirstOrDefaultAsync(u => (!string.IsNullOrEmpty(u.OwnerEmail) && u.OwnerEmail.ToLower() == normalized) || (client != null && client.UnitId == u.Id), ct);
+
+            if (client is null && unit is null)
+            {
+                return Results.Ok(new { assigned = false });
+            }
+
+            var project = unit is not null
+                ? await db.Projects.FindAsync([unit.ProjectId], ct)
+                : client is not null ? await db.Projects.FindAsync([client.ProjectId], ct) : null;
+
+            return Results.Ok(new
+            {
+                assigned = true,
+                fullName = client?.FullName ?? string.Empty,
+                phoneNumber = client?.PhoneNumber ?? string.Empty,
+                address = client?.Address ?? string.Empty,
+                unitNumber = unit?.UnitNumber ?? client?.UnitNumber ?? string.Empty,
+                projectName = project?.Name ?? client?.ProjectName ?? string.Empty,
+                unitId = unit?.Id ?? client?.UnitId
+            });
+        }).AllowAnonymous();
+
         group.MapPost("/sessions", async (SignIn request, IamService iam, CancellationToken ct) =>
         {
             try { return Results.Created("/api/v1/sessions", await iam.SignInAsync(request, ct)); }

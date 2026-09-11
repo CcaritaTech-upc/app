@@ -231,6 +231,115 @@ public sealed class AnalyticsQueryService : IAnalyticsQueryService
     {
         _logger?.LogInformation("Building owner dashboard for user {UserId}", query.UserId);
 
+        // Self-heal: ensure real units, devices, and project projections for this owner are synchronized
+        var user = await _db.IamUsers.FindAsync([query.UserId], ct);
+        var userEmail = user?.Email?.ToLowerInvariant();
+
+        var realUnits = await _db.Units
+            .Where(u => u.OwnerId == query.UserId || (!string.IsNullOrEmpty(userEmail) && u.OwnerEmail != null && u.OwnerEmail.ToLower() == userEmail))
+            .ToListAsync(ct);
+
+        if (realUnits.Count > 0)
+        {
+            var pIds = realUnits.Select(u => u.ProjectId).Distinct().ToList();
+            var existingProjectProjIds = await _db.ProjectProjections
+                .Where(p => pIds.Contains(p.ProjectId))
+                .Select(p => p.ProjectId)
+                .ToListAsync(ct);
+
+            var missingProjects = await _db.Projects
+                .Where(p => pIds.Contains(p.Id) && !existingProjectProjIds.Contains(p.Id))
+                .ToListAsync(ct);
+
+            foreach (var p in missingProjects)
+            {
+                _db.ProjectProjections.Add(new ProjectProjection
+                {
+                    ProjectId = p.Id,
+                    BuilderUserId = p.BuilderId,
+                    Name = p.Name,
+                    Status = "OnGoing",
+                    LastEventAt = DateTime.UtcNow
+                });
+            }
+
+            var uIds = realUnits.Select(u => u.Id).ToList();
+            var existingUnitProjs = await _db.UnitProjections
+                .Where(u => uIds.Contains(u.UnitId))
+                .ToListAsync(ct);
+            var existingUnitProjMap = existingUnitProjs.ToDictionary(u => u.UnitId);
+
+            foreach (var u in realUnits)
+            {
+                if (existingUnitProjMap.TryGetValue(u.Id, out var existingProj))
+                {
+                    if (existingProj.OwnerUserId != query.UserId)
+                    {
+                        existingProj.OwnerUserId = query.UserId;
+                        existingProj.OwnerEmail = userEmail ?? existingProj.OwnerEmail;
+                        existingProj.Status = "Occupied";
+                        existingProj.LastEventAt = DateTime.UtcNow;
+                    }
+                }
+                else
+                {
+                    _db.UnitProjections.Add(new UnitProjection
+                    {
+                        UnitId = u.Id,
+                        ProjectId = u.ProjectId,
+                        BuilderUserId = 0,
+                        OwnerUserId = query.UserId,
+                        OwnerEmail = userEmail ?? u.OwnerEmail,
+                        Status = "Occupied",
+                        Floor = u.Floor,
+                        RoomNumber = u.RoomNumber,
+                        LastEventAt = DateTime.UtcNow
+                    });
+                }
+            }
+
+            // Sync devices for these units
+            var realDevices = await _db.Devices.Where(d => d.UnitId.HasValue && uIds.Contains(d.UnitId.Value)).ToListAsync(ct);
+            var dIds = realDevices.Select(d => d.Id).ToList();
+            var existingDeviceProjs = await _db.DeviceProjections
+                .Where(d => dIds.Contains(d.DeviceId))
+                .ToListAsync(ct);
+            var existingDevProjMap = existingDeviceProjs.ToDictionary(d => d.DeviceId);
+
+            foreach (var d in realDevices)
+            {
+                if (d.OwnerId != query.UserId)
+                {
+                    d.OwnerId = query.UserId;
+                }
+
+                if (existingDevProjMap.TryGetValue(d.Id, out var dp))
+                {
+                    if (dp.OwnerUserId != query.UserId)
+                    {
+                        dp.OwnerUserId = query.UserId;
+                        dp.LastEventAt = DateTime.UtcNow;
+                    }
+                }
+                else
+                {
+                    _db.DeviceProjections.Add(new DeviceProjection
+                    {
+                        DeviceId = d.Id,
+                        ProjectId = d.ProjectId,
+                        UnitId = d.UnitId,
+                        DeviceName = d.Name,
+                        DeviceType = d.Type,
+                        Status = d.Status,
+                        OwnerUserId = query.UserId,
+                        LastEventAt = DateTime.UtcNow
+                    });
+                }
+            }
+
+            await _db.SaveChangesAsync(ct);
+        }
+
         var devices = await _db.DeviceProjections.Where(d => d.UnitId != null && _db.UnitProjections.Any(u => u.OwnerUserId == query.UserId && u.UnitId == d.UnitId!.Value)).ToListAsync(ct);
         var effectiveStatuses = await ResolveEffectiveStatusesAsync(devices, ct);
         var totalDevices = devices.Count;
