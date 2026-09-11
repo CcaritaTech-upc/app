@@ -51,7 +51,18 @@ public sealed class MqttDeviceTransport(Microsoft.Extensions.Configuration.IConf
                 try { await client.ConnectAsync(new MQTTnet.MqttClientOptionsBuilder().WithTcpServer(host, port).WithClientId("iobuild-devices").WithCleanSession().Build(), cancellationToken); }
                 catch (Exception exception) when (attempt < 2) { failure = exception; await Task.Delay(TimeSpan.FromMilliseconds(100 * (attempt + 1)), cancellationToken); }
             }
-            if (!client.IsConnected) throw new HttpRequestException("MQTT is not configured.", failure);
+            if (!client.IsConnected)
+            {
+                _ = Task.Run(async () =>
+                {
+                    for (var attempt = 0; attempt < 60 && !stopping && !client.IsConnected; attempt++)
+                    {
+                        try { await Task.Delay(TimeSpan.FromSeconds(2)); await StartAsync(CancellationToken.None); }
+                        catch { }
+                    }
+                });
+                return;
+            }
             await client.SubscribeAsync(new MQTTnet.MqttClientSubscribeOptionsBuilder().WithTopicFilter(filter => filter.WithTopic("telemetry/#").WithQualityOfServiceLevel(MQTTnet.Protocol.MqttQualityOfServiceLevel.AtLeastOnce)).Build(), cancellationToken);
             using (var scope = scopes.CreateScope())
             {

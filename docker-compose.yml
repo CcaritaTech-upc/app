@@ -14,6 +14,9 @@ services:
       - ConnectionStrings__IoBuild=Server=mysql-monolith;Port=3306;Database=iobuild;User=root;Password=iobuild
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4317
       - Migrations__ApplyOnStartup=true
+      - Mqtt__Enabled=true
+      - Mqtt__Host=mosquitto
+      - Mqtt__Port=1883
     depends_on:
       mysql-monolith:
         condition: service_healthy
@@ -121,7 +124,10 @@ services:
     image: eclipse-mosquitto:2-openssl
     container_name: iobuild-mosquitto
     restart: unless-stopped
+    ports:
+      - "1883:1883"
     volumes:
+      - ./mosquitto/config/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
       - mosquitto_data:/mosquitto/data
     networks:
       - iobuild-network
@@ -129,12 +135,16 @@ services:
       - telemetry
       - full
 
-  # Simulator — optional IoT telemetry generator (profile-gated, no build required)
+  # Simulator — dynamic IoT telemetry generator (profile-gated)
   simulator:
-    image: python:3.11-alpine
+    build:
+      context: ./iot-simulator
+      dockerfile: Dockerfile
     container_name: iobuild-simulator
     restart: unless-stopped
-    command: ["sh", "-c", "echo 'simulator placeholder — enable with --profile telemetry' && sleep infinity"]
+    environment:
+      - MQTT_HOST=mosquitto
+      - MQTT_PORT=1883
     depends_on:
       - mosquitto
     networks:
