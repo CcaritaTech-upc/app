@@ -1,9 +1,13 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue';
 import { useCommandStore } from '../../application/command.store.js';
+import { useAnalyticsStore } from '../../../analytics/application/analytics.store.js';
+import { useDeviceStore } from '../../application/device.store.js';
 import { DeviceApi } from '../../infrastructure/device-api.js';
 import { useToast } from 'primevue/usetoast';
 import { TOAST_SUCCESS_DURATION_MS, TOAST_AUTH_ERROR_DURATION_MS } from '../../../shared/infrastructure/constants.js';
+
+const emit = defineEmits(['status-changed']);
 
 const props = defineProps({
   /**
@@ -28,6 +32,8 @@ const props = defineProps({
 });
 
 const commandStore = useCommandStore();
+const analyticsStore = useAnalyticsStore();
+const deviceStore = useDeviceStore();
 const toast = useToast();
 const deviceApi = new DeviceApi();
 
@@ -121,6 +127,72 @@ async function onSend(attr) {
       detail: `${attr.name} set to ${value}${attr.unit ? ' ' + attr.unit : ''}`,
       life: TOAST_SUCCESS_DURATION_MS,
     });
+
+    if (attr.name === 'power') {
+      const isPowerOn = value === true || String(value).toLowerCase() === 'true' || String(value).toLowerCase() === 'on';
+      const newStatus = isPowerOn ? 'online' : 'idle';
+
+      // 1. Mutación directa e inmediata del objeto de la fila en la tabla
+      if (props.device) {
+        props.device.status = newStatus;
+      }
+
+      // 2. Actualizar ownerDashboard en analyticsStore si existe
+      if (analyticsStore.ownerDashboard?.deviceHealthStatus) {
+        const found = analyticsStore.ownerDashboard.deviceHealthStatus.find(
+          (d) => Number(d.deviceId ?? d.id) === Number(deviceId.value)
+        );
+        if (found) {
+          found.status = newStatus;
+        }
+      }
+
+      // 3. Actualizar deviceStore si existe
+      if (deviceStore.devices) {
+        const foundDev = deviceStore.devices.find(
+          (d) => Number(d.id) === Number(deviceId.value)
+        );
+        if (foundDev) {
+          foundDev.status = newStatus;
+        }
+      }
+
+      // 4. Actualizar deviceStatus si está seleccionado en el Dashboard
+      if (analyticsStore.deviceStatus && Number(analyticsStore.selectedDeviceId) === Number(deviceId.value)) {
+        analyticsStore.deviceStatus.status = newStatus;
+        if (!analyticsStore.deviceStatus.desired) {
+          analyticsStore.deviceStatus.desired = {};
+        }
+        analyticsStore.deviceStatus.desired.power = isPowerOn;
+      }
+
+      emit('status-changed', { deviceId: deviceId.value, status: newStatus });
+    }
+
+    // 5. Sincronización en segundo plano: re-consultar estado confirmado tras respuesta del simulador
+    setTimeout(async () => {
+      try {
+        const fresh = await deviceApi.getDeviceStatus(deviceId.value);
+        if (fresh?.status) {
+          if (props.device) {
+            props.device.status = fresh.status;
+          }
+          if (analyticsStore.ownerDashboard?.deviceHealthStatus) {
+            const found = analyticsStore.ownerDashboard.deviceHealthStatus.find(
+              (d) => Number(d.deviceId ?? d.id) === Number(deviceId.value)
+            );
+            if (found) {
+              found.status = fresh.status;
+            }
+          }
+          if (analyticsStore.deviceStatus && Number(analyticsStore.selectedDeviceId) === Number(deviceId.value)) {
+            analyticsStore.deviceStatus = fresh;
+          }
+        }
+      } catch {
+        // Ignorar en sincronización pasiva
+      }
+    }, 1500);
   } else {
     toast.add({
       severity: result.status === 403 ? 'warn' : 'error',
