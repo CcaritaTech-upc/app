@@ -17,6 +17,16 @@ export class DeviceApi extends BaseApi {
     }
   }
 
+  async getDevicesByUnitId(unitId) {
+    try {
+      const response = await this.http.get(`${this.devicesEndpoint}?unitId=${unitId}`);
+      return DeviceAssembler.toEntityList(response.data);
+    } catch (error) {
+      console.error('Error fetching unit devices:', error);
+      throw new Error('No se pudieron cargar los dispositivos de la unidad');
+    }
+  }
+
   async getDeviceById(id) {
     try {
       const response = await this.http.get(`${this.devicesEndpoint}/${id}`);

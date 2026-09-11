@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import { useClientStore } from '../../application/client.store.js';
 import { useRoute, useRouter } from 'vue-router';
 import { useConfirm } from 'primevue/useconfirm';
@@ -8,6 +8,7 @@ import { useI18n } from 'vue-i18n';
 import ClientEditDialog from '../components/client-edit-dialog.vue';
 import { TOAST_ERROR_DURATION_MS } from '../../../shared/infrastructure/constants.js';
 import { ClientStatus } from '../../domain/model/client-status.enum.js';
+import { DeviceApi } from '../../../devices/infrastructure/device-api.js';
 
 const clientStore = useClientStore();
 const route = useRoute();
@@ -15,15 +16,40 @@ const router = useRouter();
 const confirm = useConfirm();
 const toast = useToast();
 const { t } = useI18n();
+const deviceApi = new DeviceApi();
 
 const clientId = computed(() => parseInt(route.params.id));
 const client = computed(() => clientStore.getClientById(clientId.value));
 const showEditDialog = ref(false);
+const unitDevices = ref([]);
+const loadingDevices = ref(false);
+
+const loadDevices = async () => {
+  if (!client.value || !client.value.unitId) {
+    unitDevices.value = [];
+    return;
+  }
+  loadingDevices.value = true;
+  try {
+    unitDevices.value = await deviceApi.getDevicesByUnitId(client.value.unitId);
+  } catch (error) {
+    console.error('Error fetching unit devices:', error);
+    unitDevices.value = [];
+  } finally {
+    loadingDevices.value = false;
+  }
+};
+
+watch(() => client.value?.unitId, () => {
+  loadDevices();
+});
 
 onMounted(async () => {
   if (!clientStore.clientsLoaded) {
     await clientStore.fetchClients();
   }
+
+  await loadDevices();
 
   // Si viene con query parameter edit=true, abrir el diálogo automáticamente
   if (route.query.edit === 'true') {
@@ -48,6 +74,16 @@ const getSeverity = (status) => {
   }
 };
 
+const getDeviceIcon = (type) => {
+  const val = (type || '').toLowerCase();
+  if (val.includes('light')) return 'pi pi-sun';
+  if (val.includes('condition') || val.includes('air')) return 'pi pi-cloud';
+  if (val.includes('water')) return 'pi pi-filter';
+  if (val.includes('smoke')) return 'pi pi-bell';
+  if (val.includes('meter')) return 'pi pi-gauge';
+  return 'pi pi-server';
+};
+
 // Función para traducir el estado
 const getStatusLabel = (status) => {
   const statusMap = {
@@ -65,6 +101,7 @@ const handleEdit = () => {
 const handleSaveEdit = async (updatedClient) => {
   try {
     await clientStore.updateClient(updatedClient);
+    await loadDevices();
     toast.add({
       severity: 'success',
       summary: t('clients.messages.updateSuccess'),
@@ -190,6 +227,83 @@ const handleDelete = () => {
                 <pv-tag v-if="client.unitNumber" :value="`Unidad ${client.unitNumber}`" severity="info" />
                 <span v-else class="text-gray-400 italic">Sin asignar</span>
               </p>
+            </div>
+          </div>
+
+          <div class="col-12 md:col-6">
+            <div class="mb-4">
+              <label class="block font-semibold text-gray-700 mb-2">
+                <i class="pi pi-server mr-2"></i>{{ t('clients.fields.iotDevices') }}
+              </label>
+              <div v-if="!client.unitId" class="text-gray-400 italic text-sm">
+                {{ t('clients.messages.assignUnitForDevices') }}
+              </div>
+              <div v-else-if="loadingDevices" class="flex align-items-center gap-2">
+                <i class="pi pi-spin pi-spinner text-blue-500"></i>
+                <span class="text-gray-500 text-sm">Cargando...</span>
+              </div>
+              <div v-else class="flex align-items-center gap-2">
+                <pv-tag
+                  :value="t('clients.fields.devicesCount', { count: unitDevices.length || client.deviceCount || 0 })"
+                  :severity="(unitDevices.length || client.deviceCount) > 0 ? 'success' : 'warn'"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Panel detallado de Dispositivos IoT vinculados a la Unidad -->
+        <div class="mt-2 mb-4 p-4 border-round bg-gray-50 border-1 border-gray-200">
+          <div class="flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+            <div class="flex align-items-center gap-2">
+              <i class="pi pi-bolt text-yellow-600 text-xl"></i>
+              <h3 class="text-xl font-bold m-0 text-gray-800">
+                {{ t('clients.profile.devicesSection') }}
+              </h3>
+            </div>
+            <pv-tag
+              v-if="client.unitId"
+              :value="`${unitDevices.length || client.deviceCount || 0} dispositivos vinculados`"
+              :severity="(unitDevices.length || client.deviceCount) > 0 ? 'success' : 'secondary'"
+            />
+          </div>
+
+          <div v-if="!client.unitId" class="text-center py-4 text-gray-500">
+            <i class="pi pi-info-circle text-4xl text-blue-400 mb-2"></i>
+            <p class="m-0 font-medium">{{ t('clients.messages.assignUnitForDevices') }}</p>
+          </div>
+
+          <div v-else-if="loadingDevices" class="text-center py-4">
+            <i class="pi pi-spin pi-spinner text-3xl text-blue-500 mb-2"></i>
+            <p class="text-gray-500 m-0">Consultando dispositivos IoT asociados...</p>
+          </div>
+
+          <div v-else-if="unitDevices.length === 0" class="text-center py-4 text-gray-500">
+            <i class="pi pi-inbox text-4xl text-gray-400 mb-2"></i>
+            <p class="m-0 font-medium">{{ t('clients.messages.noDevicesInUnit') }}</p>
+          </div>
+
+          <div v-else class="grid">
+            <div
+              v-for="device in unitDevices"
+              :key="device.id"
+              class="col-12 sm:col-6 lg:col-4"
+            >
+              <div class="p-3 border-round bg-white border-1 border-gray-200 shadow-1 flex align-items-center justify-content-between">
+                <div class="flex align-items-center gap-3">
+                  <div class="p-2 border-round bg-blue-50 text-blue-600">
+                    <i :class="getDeviceIcon(device.type)" class="text-xl"></i>
+                  </div>
+                  <div>
+                    <span class="font-bold text-gray-900 block text-base">{{ device.name }}</span>
+                    <span class="text-xs text-gray-500 block">{{ device.type }} • {{ device.location || 'Unidad ' + (client.unitNumber || '') }}</span>
+                  </div>
+                </div>
+                <pv-tag
+                  :value="device.status || 'Active'"
+                  :severity="device.status?.toLowerCase() === 'offline' ? 'danger' : 'success'"
+                />
+              </div>
             </div>
           </div>
         </div>

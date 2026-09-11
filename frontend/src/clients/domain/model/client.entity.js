@@ -9,7 +9,8 @@ export class Client {
                     phoneNumber = "",
                     address = "",
                     unitId = null,
-                    unitNumber = ""
+                    unitNumber = "",
+                    deviceCount = 0
                 }) {
         this.id = id;
         this.fullName = fullName;
@@ -21,6 +22,7 @@ export class Client {
         this.address = address;
         this.unitId = unitId;
         this.unitNumber = unitNumber;
+        this.deviceCount = deviceCount;
     }
 }
 

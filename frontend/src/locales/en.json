@@ -175,7 +175,8 @@
     "profile": {
       "title": "Client Profile",
       "personalInfo": "Personal Information",
-      "projectInfo": "Project Information"
+      "projectInfo": "Project Information",
+      "devicesSection": "Unit IoT Devices"
     },
     "fields": {
       "fullName": "Full Name",
@@ -184,7 +185,9 @@
       "email": "Email",
       "phoneNumber": "Phone Number",
       "address": "Address",
-      "unit": "Unit / Apartment"
+      "unit": "Unit / Apartment",
+      "iotDevices": "IoT Devices",
+      "devicesCount": "{count} linked devices"
     },
     "status": {
       "active": "Active",
@@ -217,7 +220,9 @@
       "deleteError": "Failed to delete client",
       "deleteConfirmTitle": "Delete Confirmation",
       "deleteConfirmMessage": "Are you sure you want to delete {name}?",
-      "paginationSummary": "{first} to {last} of {totalRecords}"
+      "paginationSummary": "{first} to {last} of {totalRecords}",
+      "noDevicesInUnit": "No IoT devices registered in this unit",
+      "assignUnitForDevices": "A unit must be assigned to view IoT devices"
     }
   },
   "subscriptions": {
