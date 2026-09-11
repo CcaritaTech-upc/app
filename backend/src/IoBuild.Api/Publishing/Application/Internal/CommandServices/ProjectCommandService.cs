@@ -15,6 +15,17 @@ public sealed class ProjectCommandService(IoBuildDbContext dbContext) : IProject
         var project = new Project { Name = name, Description = description, Location = location, TotalUnits = totalUnits, BuilderId = builderId, ImageUrl = imageUrl };
         dbContext.Projects.Add(project);
         await dbContext.SaveChangesAsync(cancellationToken);
+
+        dbContext.ProjectProjections.Add(new IoBuild.Api.Analytics.Domain.Model.Aggregates.ProjectProjection
+        {
+            ProjectId = project.Id,
+            BuilderUserId = builderId,
+            Name = project.Name,
+            Status = "Active",
+            LastEventAt = DateTime.UtcNow
+        });
+        await dbContext.SaveChangesAsync(cancellationToken);
+
         return project;
     }
 
@@ -106,6 +117,35 @@ public sealed class ProjectCommandService(IoBuildDbContext dbContext) : IProject
             });
         }
         await dbContext.Devices.AddRangeAsync(unitDevices, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        // 4. Synchronize with Analytics Projections (Units & Devices)
+        foreach (var unit in units)
+        {
+            dbContext.UnitProjections.Add(new IoBuild.Api.Analytics.Domain.Model.Aggregates.UnitProjection
+            {
+                UnitId = unit.Id,
+                ProjectId = projectId,
+                BuilderUserId = project.BuilderId,
+                Status = "Available",
+                Floor = unit.Floor,
+                RoomNumber = unit.RoomNumber,
+                LastEventAt = DateTime.UtcNow
+            });
+        }
+        foreach (var dev in floorDevices.Concat(unitDevices))
+        {
+            dbContext.DeviceProjections.Add(new IoBuild.Api.Analytics.Domain.Model.Aggregates.DeviceProjection
+            {
+                DeviceId = dev.Id,
+                ProjectId = dev.ProjectId,
+                UnitId = dev.UnitId,
+                DeviceName = dev.Name,
+                DeviceType = dev.Type,
+                Status = dev.Status,
+                LastEventAt = DateTime.UtcNow
+            });
+        }
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 }

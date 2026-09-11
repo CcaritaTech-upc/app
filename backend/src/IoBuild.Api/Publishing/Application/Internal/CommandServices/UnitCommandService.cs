@@ -76,6 +76,22 @@ public class UnitCommandService : IUnitCommandService
             existingUnitProj.Status = unit.Status;
             existingUnitProj.LastEventAt = DateTime.UtcNow;
         }
+        else
+        {
+            var p = await _dbContext.Projects.FindAsync([unit.ProjectId], ct);
+            _dbContext.UnitProjections.Add(new IoBuild.Api.Analytics.Domain.Model.Aggregates.UnitProjection
+            {
+                UnitId = unit.Id,
+                ProjectId = unit.ProjectId,
+                BuilderUserId = p?.BuilderId ?? 0,
+                OwnerUserId = resolvedOwnerId,
+                OwnerEmail = string.IsNullOrWhiteSpace(command.OwnerEmail) ? null : command.OwnerEmail.Trim(),
+                Status = unit.Status,
+                Floor = unit.Floor,
+                RoomNumber = unit.RoomNumber,
+                LastEventAt = DateTime.UtcNow
+            });
+        }
 
         // Synchronize with Clients in this project
         if (!string.IsNullOrWhiteSpace(command.OwnerEmail))
