@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref, computed } from "vue";
+import { onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useConfirm } from "primevue/useconfirm";
 import { useToast } from "primevue/usetoast";
@@ -171,13 +171,11 @@ const handleCancelPlan = () => {
 };
 
 const handleSelectPlan = (plan) => {
-  // If builder already has an active plan, show confirmation modal before Stripe
   if (store.currentPlan && store.currentPlan.id !== plan.id) {
     targetPlanForChange.value = plan;
     changePlanVisible.value = true;
     return;
   }
-  // Otherwise direct checkout
   handlePayPlan(plan);
 };
 
@@ -240,44 +238,42 @@ const handlePayPlan = async (plan) => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-slate-50/60 pb-16">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
-      <!-- Header -->
-      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-        <div>
-          <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight">
-            {{ t("subscriptions.title") }}
-          </h1>
-          <p class="text-sm text-gray-500 mt-1">
-            Administra el plan de tu empresa, supervisa cuotas de dispositivos IoT y descarga comprobantes de facturación.
+  <div class="subscription-page">
+    <div class="page-container">
+      <!-- Page Header -->
+      <div class="page-header">
+        <div class="header-left">
+          <h1 class="page-title">{{ t("subscriptions.title") }}</h1>
+          <p class="page-subtitle">
+            Administra el plan de tu empresa, supervisa cuotas de dispositivos IoT y descarga tus comprobantes de facturación.
           </p>
         </div>
 
-        <div class="flex items-center gap-3">
-          <pv-button
-            :label="t('subscriptions.compare-plans')"
-            icon="pi pi-table"
-            severity="secondary"
-            outlined
-            class="text-xs font-semibold py-2 px-3.5 border-gray-300 text-gray-700 bg-white hover:bg-gray-50 rounded-xl"
+        <div class="header-actions">
+          <button
+            type="button"
+            class="header-outline-btn"
             @click="comparisonVisible = true"
-          />
+          >
+            <i class="pi pi-table"></i>
+            <span>{{ t('subscriptions.compare-plans') }}</span>
+          </button>
 
-          <pv-button
-            :label="t('subscriptions.view-invoices')"
-            icon="pi pi-receipt"
-            severity="secondary"
-            outlined
-            class="text-xs font-semibold py-2 px-3.5 border-gray-300 text-gray-700 bg-white hover:bg-gray-50 rounded-xl"
+          <button
+            type="button"
+            class="header-outline-btn"
             @click="openInvoicesDialog"
-          />
+          >
+            <i class="pi pi-receipt"></i>
+            <span>{{ t('subscriptions.view-invoices') }}</span>
+          </button>
         </div>
       </div>
 
-      <!-- Loading state -->
-      <div v-if="store.isLoading && !store.availablePlans.length" class="flex flex-col items-center justify-center py-24 gap-3">
+      <!-- Spinner -->
+      <div v-if="store.isLoading && !store.availablePlans.length" class="loading-state">
         <pv-progress-spinner style="width: 48px; height: 48px" />
-        <span class="text-sm text-gray-500">Cargando información de suscripción...</span>
+        <span class="loading-text">Cargando información de suscripción...</span>
       </div>
 
       <div v-else>
@@ -296,43 +292,37 @@ const handlePayPlan = async (plan) => {
         />
 
         <!-- Banner for users without subscription -->
-        <div
-          v-else
-          class="bg-gradient-to-r from-emerald-600 to-teal-700 text-white p-8 rounded-2xl mb-10 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6"
-        >
-          <div>
-            <div class="inline-flex items-center gap-2 bg-emerald-500/30 text-emerald-100 text-xs font-bold px-3 py-1 rounded-full mb-3">
+        <div v-else class="empty-state-banner">
+          <div class="banner-content">
+            <div class="banner-pill">
               <i class="pi pi-sparkles"></i>
-              Comienza a operar en IoBuild
+              <span>Comienza a operar en IoBuild</span>
             </div>
-            <h2 class="text-2xl font-black mb-2">
-              {{ t("subscriptions.no-subscription") }}
-            </h2>
-            <p class="text-emerald-100 text-sm max-w-xl leading-relaxed">
+            <h2 class="banner-title">{{ t("subscriptions.no-subscription") }}</h2>
+            <p class="banner-desc">
               Elige un plan de infraestructura para conectar tus dispositivos IoT, gestionar proyectos inmobiliarios y brindar acceso a los propietarios de tus unidades.
             </p>
           </div>
-          <pv-button
-            label="Ver Tabla Comparativa"
-            icon="pi pi-arrow-right"
-            iconPos="right"
-            class="bg-white text-emerald-800 hover:bg-emerald-50 border-none font-bold py-3 px-5 text-sm rounded-xl shrink-0 shadow-md"
+          <button
+            type="button"
+            class="banner-cta"
             @click="comparisonVisible = true"
-          />
+          >
+            <span>Ver Tabla Comparativa</span>
+            <i class="pi pi-arrow-right"></i>
+          </button>
         </div>
 
         <!-- 2. Plans Grid Section -->
-        <div class="mt-4">
-          <div class="text-center sm:text-left mb-8">
-            <h2 class="text-xl font-extrabold text-gray-900 tracking-tight">
-              {{ t("subscriptions.all-plans") }}
-            </h2>
-            <p class="text-xs text-gray-500 mt-0.5">
+        <div class="plans-section">
+          <div class="plans-section-header">
+            <h2 class="section-title">{{ t("subscriptions.all-plans") }}</h2>
+            <p class="section-subtitle">
               Escala tu infraestructura según la cantidad de dispositivos y unidades de tus proyectos inmobiliarios.
             </p>
           </div>
 
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
+          <div class="plans-grid">
             <PlanCard
               v-for="plan in store.availablePlans"
               :key="plan.id"
@@ -377,4 +367,207 @@ const handlePayPlan = async (plan) => {
 </template>
 
 <style scoped>
+.subscription-page {
+  min-height: 100vh;
+  background-color: #f8fafc;
+  padding: 2.5rem 2rem 5rem 2rem;
+  color: #0f172a;
+  font-family: inherit;
+}
+
+.page-container {
+  max-width: 1240px;
+  margin: 0 auto;
+}
+
+/* Page Header */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.page-title {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.025em;
+  margin: 0 0 0.35rem 0;
+}
+
+.page-subtitle {
+  font-size: 0.88rem;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.5;
+  max-width: 600px;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.header-outline-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  background: #ffffff;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+  padding: 0.55rem 1rem;
+  border-radius: 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.header-outline-btn:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+}
+
+.header-outline-btn i {
+  color: #64748b;
+  font-size: 0.8rem;
+}
+
+/* Loading */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 6rem 0;
+  gap: 1rem;
+}
+
+.loading-text {
+  font-size: 0.88rem;
+  color: #64748b;
+}
+
+/* Empty State Banner */
+.empty-state-banner {
+  background: linear-gradient(135deg, #059669 0%, #0f766e 100%);
+  color: #ffffff;
+  border-radius: 1.25rem;
+  padding: 2.25rem 2.5rem;
+  margin-bottom: 2.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 2rem;
+  flex-wrap: wrap;
+  box-shadow: 0 10px 25px -5px rgba(5, 150, 105, 0.25);
+}
+
+.banner-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.3rem 0.85rem;
+  border-radius: 9999px;
+  margin-bottom: 0.75rem;
+}
+
+.banner-title {
+  font-size: 1.65rem;
+  font-weight: 800;
+  margin: 0 0 0.5rem 0;
+  letter-spacing: -0.02em;
+}
+
+.banner-desc {
+  font-size: 0.88rem;
+  color: #e6fffa;
+  margin: 0;
+  max-width: 650px;
+  line-height: 1.5;
+}
+
+.banner-cta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #ffffff;
+  color: #065f46;
+  border: none;
+  font-size: 0.85rem;
+  font-weight: 800;
+  padding: 0.85rem 1.35rem;
+  border-radius: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+.banner-cta:hover {
+  background: #ecfdf5;
+  transform: translateY(-2px);
+}
+
+/* Plans Section */
+.plans-section-header {
+  margin-bottom: 1.75rem;
+}
+
+.section-title {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 0.25rem 0;
+}
+
+.section-subtitle {
+  font-size: 0.82rem;
+  color: #64748b;
+  margin: 0;
+}
+
+/* Plans Grid */
+.plans-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.75rem;
+  align-items: stretch;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .plans-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .subscription-page {
+    padding: 1.5rem 1rem 3rem 1rem;
+  }
+  .plans-grid {
+    grid-template-columns: 1fr;
+  }
+  .page-header {
+    flex-direction: column;
+  }
+  .header-actions {
+    width: 100%;
+  }
+  .header-outline-btn {
+    flex: 1;
+    justify-content: center;
+  }
+}
 </style>

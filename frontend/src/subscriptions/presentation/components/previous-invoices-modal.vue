@@ -22,110 +22,307 @@ const openReceipt = (url) => {
     :visible="props.visible"
     @update:visible="emit('close')"
     :modal="true"
-    :style="{ width: '740px', maxWidth: '95vw' }"
+    :style="{ width: '720px', maxWidth: '95vw' }"
     :header="t('subscriptions.invoices-title')"
   >
-    <div v-if="props.loading" class="flex flex-col justify-center items-center py-12 gap-3">
-      <pv-progress-spinner style="width: 42px; height: 42px" />
-      <span class="text-xs text-gray-500">Cargando recibos de Stripe...</span>
+    <div v-if="props.loading" class="invoices-loading">
+      <pv-progress-spinner style="width: 40px; height: 40px" />
+      <span class="loading-label">Cargando comprobantes de Stripe...</span>
     </div>
 
-    <div v-else class="py-1">
-      <div
-        v-if="props.error"
-        class="bg-red-50 text-red-700 text-xs p-3 rounded-lg border border-red-200 mb-4 flex items-center gap-2"
-      >
-        <i class="pi pi-exclamation-circle text-red-600"></i>
+    <div v-else class="invoices-container">
+      <div v-if="props.error" class="error-banner">
+        <i class="pi pi-exclamation-circle"></i>
         <span>{{ props.error }}</span>
       </div>
 
-      <div
-        v-if="!props.invoices.length && !props.error"
-        class="flex flex-col items-center justify-center py-12 text-center"
-      >
-        <div class="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mb-3">
-          <i class="pi pi-receipt text-2xl text-slate-400"></i>
+      <div v-if="!props.invoices.length && !props.error" class="empty-invoices">
+        <div class="empty-icon-circle">
+          <i class="pi pi-receipt"></i>
         </div>
-        <h4 class="text-sm font-semibold text-gray-800 mb-1">
-          {{ t('subscriptions.no-invoices-found') }}
-        </h4>
-        <p class="text-xs text-gray-500 max-w-sm">
-          Tus facturas y recibos de pagos procesados aparecerán aquí automáticamente para su descarga.
+        <h4 class="empty-title">{{ t('subscriptions.no-invoices-found') }}</h4>
+        <p class="empty-subtitle">
+          Tus facturas y recibos de pagos aparecerán aquí automáticamente para su consulta y descarga.
         </p>
       </div>
 
-      <div v-else-if="props.invoices.length" class="overflow-x-auto">
-        <pv-data-table
-          :value="props.invoices"
-          class="p-datatable-sm text-xs"
-          striped-rows
-          responsive-layout="scroll"
-        >
-          <pv-column field="date" :header="t('subscriptions.invoice-date')" style="min-width: 120px">
-            <template #body="{ data }">
-              <span class="font-medium text-gray-700">{{ data.date }}</span>
-            </template>
-          </pv-column>
-
-          <pv-column field="description" :header="t('subscriptions.invoice-description')" style="min-width: 160px">
-            <template #body="{ data }">
-              <span class="text-gray-900 font-semibold">{{ data.description || 'Suscripción IoBuild' }}</span>
-            </template>
-          </pv-column>
-
-          <pv-column :header="t('subscriptions.invoice-amount')" style="min-width: 110px">
-            <template #body="{ data }">
-              <span class="font-bold text-gray-900">
-                ${{ Number(data.amount).toFixed(2) }}
-              </span>
-              <span class="text-[10px] text-gray-400 ml-1 uppercase">{{ data.currency || 'usd' }}</span>
-            </template>
-          </pv-column>
-
-          <pv-column :header="t('subscriptions.invoice-status')" style="min-width: 100px">
-            <template #body="{ data }">
-              <span
-                v-if="data.status === 'paid'"
-                class="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 text-[11px] font-semibold px-2 py-0.5 rounded-full border border-emerald-200"
-              >
-                <i class="pi pi-check text-[9px]"></i>
-                {{ t('subscriptions.invoice-status-paid') }}
-              </span>
-              <span
-                v-else
-                class="inline-flex items-center gap-1 bg-amber-50 text-amber-700 text-[11px] font-semibold px-2 py-0.5 rounded-full border border-amber-200"
-              >
-                <i class="pi pi-clock text-[9px]"></i>
-                {{ t('subscriptions.invoice-status-pending') }}
-              </span>
-            </template>
-          </pv-column>
-
-          <pv-column :header="t('subscriptions.invoice-receipt')" style="min-width: 110px" class="text-right">
-            <template #body="{ data }">
-              <pv-button
-                v-if="data.downloadUrl"
-                :label="t('subscriptions.download-receipt')"
-                icon="pi pi-download"
-                size="small"
-                text
-                class="text-emerald-600 hover:text-emerald-700 p-0 text-xs font-semibold"
-                @click="openReceipt(data.downloadUrl)"
-              />
-              <span v-else class="text-gray-400 text-xs">—</span>
-            </template>
-          </pv-column>
-        </pv-data-table>
+      <div v-else-if="props.invoices.length" class="table-container">
+        <table class="invoices-table">
+          <thead>
+            <tr>
+              <th>{{ t('subscriptions.invoice-date') }}</th>
+              <th>{{ t('subscriptions.invoice-description') }}</th>
+              <th>{{ t('subscriptions.invoice-amount') }}</th>
+              <th>{{ t('subscriptions.invoice-status') }}</th>
+              <th class="th-action">{{ t('subscriptions.invoice-receipt') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(inv, idx) in props.invoices" :key="idx" class="invoice-row">
+              <td class="td-date">{{ inv.date }}</td>
+              <td class="td-desc">{{ inv.description || 'Suscripción IoBuild' }}</td>
+              <td class="td-amount">
+                ${{ Number(inv.amount).toFixed(2) }}
+                <span class="currency-tag">{{ inv.currency || 'USD' }}</span>
+              </td>
+              <td class="td-status">
+                <span v-if="inv.status === 'paid'" class="status-pill pill-paid">
+                  <i class="pi pi-check"></i>
+                  <span>{{ t('subscriptions.invoice-status-paid') }}</span>
+                </span>
+                <span v-else class="status-pill pill-pending">
+                  <i class="pi pi-clock"></i>
+                  <span>{{ t('subscriptions.invoice-status-pending') }}</span>
+                </span>
+              </td>
+              <td class="td-action">
+                <button
+                  v-if="inv.downloadUrl"
+                  type="button"
+                  class="download-btn"
+                  @click="openReceipt(inv.downloadUrl)"
+                >
+                  <i class="pi pi-download"></i>
+                  <span>{{ t('subscriptions.download-receipt') }}</span>
+                </button>
+                <span v-else class="no-download">—</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
 
-      <div class="mt-5 flex justify-end pt-3 border-t border-gray-100">
-        <pv-button
-          label="Cerrar"
-          severity="secondary"
-          text
-          @click="emit('close')"
-        />
+      <div class="modal-footer">
+        <button type="button" class="btn-close" @click="emit('close')">
+          Cerrar
+        </button>
       </div>
     </div>
   </pv-dialog>
 </template>
+
+<style scoped>
+.invoices-container {
+  font-family: inherit;
+  padding: 0.25rem 0;
+}
+
+.invoices-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3.5rem 0;
+  gap: 0.75rem;
+}
+
+.loading-label {
+  font-size: 0.82rem;
+  color: #64748b;
+}
+
+.error-banner {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+  padding: 0.75rem 1rem;
+  border-radius: 0.65rem;
+  font-size: 0.8rem;
+  margin-bottom: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.empty-invoices {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1.5rem;
+  text-align: center;
+}
+
+.empty-icon-circle {
+  width: 4rem;
+  height: 4rem;
+  border-radius: 9999px;
+  background: #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.empty-icon-circle i {
+  font-size: 1.5rem;
+  color: #94a3b8;
+}
+
+.empty-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0 0 0.35rem 0;
+}
+
+.empty-subtitle {
+  font-size: 0.82rem;
+  color: #64748b;
+  max-width: 380px;
+  margin: 0;
+  line-height: 1.45;
+}
+
+/* Table */
+.table-container {
+  overflow-x: auto;
+}
+
+.invoices-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  text-align: left;
+}
+
+.invoices-table th {
+  padding: 0.85rem 1rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+  border-bottom: 2px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.th-action {
+  text-align: right;
+}
+
+.invoice-row {
+  border-bottom: 1px solid #f1f5f9;
+  transition: background-color 0.15s;
+}
+
+.invoice-row:hover {
+  background-color: #f8fafc;
+}
+
+.invoice-row td {
+  padding: 0.9rem 1rem;
+}
+
+.td-date {
+  color: #475569;
+  font-weight: 600;
+}
+
+.td-desc {
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.td-amount {
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.currency-tag {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  margin-left: 0.2rem;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 9999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.pill-paid {
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+.pill-paid i {
+  font-size: 0.55rem;
+}
+
+.pill-pending {
+  background: #fffbeb;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+
+.pill-pending i {
+  font-size: 0.55rem;
+}
+
+.td-action {
+  text-align: right;
+}
+
+.download-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: transparent;
+  color: #059669;
+  border: 1px solid #a7f3d0;
+  padding: 0.35rem 0.75rem;
+  border-radius: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.download-btn:hover {
+  background: #ecfdf5;
+  border-color: #059669;
+}
+
+.download-btn i {
+  font-size: 0.7rem;
+}
+
+.no-download {
+  color: #cbd5e1;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 1.25rem;
+  border-top: 1px solid #f1f5f9;
+  margin-top: 0.75rem;
+}
+
+.btn-close {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+  font-weight: 700;
+  font-size: 0.85rem;
+  padding: 0.55rem 1.25rem;
+  border-radius: 0.65rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.btn-close:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+</style>

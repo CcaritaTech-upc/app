@@ -23,14 +23,12 @@ const isCancelled = computed(() => {
   return props.subscription?.status?.toLowerCase() === "cancelled";
 });
 
-// Calculate next renewal date (e.g. 30 days after startDate or endDate)
 const renewalDateFormatted = computed(() => {
   const start = props.subscription?.startDate ? new Date(props.subscription.startDate) : new Date();
   const next = props.subscription?.endDate ? new Date(props.subscription.endDate) : new Date(start.getTime() + 30 * 24 * 60 * 60 * 1000);
   return next.toLocaleDateString("es-ES", { year: "numeric", month: "long", day: "numeric" });
 });
 
-// Quota limits based on plan name
 const planLimits = computed(() => {
   const name = props.plan?.name?.toLowerCase() || "";
   if (name.includes("starter")) {
@@ -54,126 +52,112 @@ const isNearLimit = computed(() => {
 </script>
 
 <template>
-  <div class="current-plan-card bg-white rounded-2xl border border-gray-200 shadow-sm p-6 mb-8 transition-all">
-    <!-- Cancelled notice banner if applicable -->
-    <div
-      v-if="isCancelled"
-      class="bg-amber-50 border border-amber-200 text-amber-800 text-xs px-4 py-2.5 rounded-xl mb-6 flex items-center justify-between gap-3"
-    >
-      <div class="flex items-center gap-2">
-        <i class="pi pi-exclamation-triangle text-amber-600"></i>
+  <div class="current-plan-card">
+    <!-- Notice if cancelled -->
+    <div v-if="isCancelled" class="cancelled-alert">
+      <div class="alert-left">
+        <i class="pi pi-exclamation-triangle"></i>
         <span>{{ t('subscriptions.cancelled-notice') }}</span>
       </div>
-      <span class="font-semibold text-amber-900">Vigente hasta {{ renewalDateFormatted }}</span>
+      <span class="alert-date">Vigente hasta {{ renewalDateFormatted }}</span>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
-      <!-- 1. Plan identity & pricing (cols 4) -->
-      <div class="lg:col-span-4 border-b lg:border-b-0 lg:border-r border-gray-100 pb-6 lg:pb-0 lg:pr-6">
-        <div class="flex items-center gap-2.5 mb-2">
-          <span class="text-xs uppercase tracking-wider font-semibold text-gray-400">
-            {{ t('subscriptions.current-plan') }}
-          </span>
-          <span
-            class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold"
-            :class="isActive ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'"
-          >
-            <span class="w-1.5 h-1.5 rounded-full" :class="isActive ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'"></span>
+    <div class="hero-grid">
+      <!-- 1. Plan Identity -->
+      <div class="hero-col hero-col-identity">
+        <div class="identity-top">
+          <span class="eyebrow">{{ t('subscriptions.current-plan') }}</span>
+          <span class="status-pill" :class="isActive ? 'status-active' : 'status-cancelled'">
+            <span class="status-dot"></span>
             {{ isActive ? t('subscriptions.status-active') : t('subscriptions.status-cancelled') }}
           </span>
         </div>
 
-        <h2 class="text-2xl font-extrabold text-gray-900 mb-1">
-          {{ plan.name }}
-        </h2>
-        <p class="text-xs text-gray-500 mb-4">{{ plan.description }}</p>
+        <h2 class="hero-plan-title">{{ plan.name }}</h2>
+        <p class="hero-plan-desc">{{ plan.description }}</p>
 
-        <div class="flex items-baseline gap-1 mb-2">
-          <span class="text-3xl font-black text-gray-900">${{ plan.price }}</span>
-          <span class="text-xs text-gray-500 font-medium">/ {{ t('subscriptions.month') }}</span>
+        <div class="hero-price-row">
+          <span class="hero-price-amount">${{ plan.price }}</span>
+          <span class="hero-price-period">/ {{ t('subscriptions.month') }}</span>
         </div>
 
-        <div class="flex items-center gap-2 text-[11px] text-gray-400">
-          <i class="pi pi-calendar text-xs"></i>
-          <span>{{ t('subscriptions.next-billing') }}: <strong class="text-gray-700 font-semibold">{{ renewalDateFormatted }}</strong></span>
+        <div class="hero-renewal">
+          <i class="pi pi-calendar"></i>
+          <span>{{ t('subscriptions.next-billing') }}: <strong>{{ renewalDateFormatted }}</strong></span>
         </div>
       </div>
 
-      <!-- 2. Quota & usage meters (cols 5) -->
-      <div class="lg:col-span-5 border-b lg:border-b-0 lg:border-r border-gray-100 pb-6 lg:pb-0 lg:px-6">
-        <h4 class="text-xs font-bold text-gray-700 uppercase tracking-wider mb-4 flex items-center gap-1.5">
-          <i class="pi pi-chart-bar text-emerald-600"></i>
-          {{ t('subscriptions.usage-title') }}
-        </h4>
+      <!-- 2. Quotas and Meter -->
+      <div class="hero-col hero-col-quotas">
+        <div class="quotas-header">
+          <i class="pi pi-chart-bar"></i>
+          <span>{{ t('subscriptions.usage-title') }}</span>
+        </div>
 
-        <!-- Devices quota -->
-        <div class="mb-4">
-          <div class="flex justify-between items-center text-xs mb-1.5">
-            <span class="font-medium text-gray-700">{{ t('subscriptions.usage-devices') }}</span>
-            <span class="font-bold text-gray-900">
-              {{ props.totalDevices }} / {{ planLimits.label }}
-              <span v-if="planLimits.maxDevices !== Infinity" class="text-gray-400 font-normal">({{ devicePercentage }}%)</span>
+        <div class="quota-item">
+          <div class="quota-meta">
+            <span class="quota-label">{{ t('subscriptions.usage-devices') }}</span>
+            <span class="quota-values">
+              <strong>{{ props.totalDevices }}</strong> / {{ planLimits.label }}
+              <span v-if="planLimits.maxDevices !== Infinity" class="quota-pct">({{ devicePercentage }}%)</span>
             </span>
           </div>
-
-          <div class="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+          <div class="progress-track">
             <div
-              class="h-full rounded-full transition-all duration-500"
-              :class="isNearLimit ? 'bg-amber-500' : 'bg-emerald-500'"
+              class="progress-fill"
+              :class="{ 'progress-warning': isNearLimit }"
               :style="{ width: `${devicePercentage}%` }"
             ></div>
           </div>
-
-          <p v-if="isNearLimit" class="text-[11px] text-amber-600 mt-1 flex items-center gap-1">
-            <i class="pi pi-info-circle text-[10px]"></i>
-            {{ t('subscriptions.usage-warning') }}
+          <p v-if="isNearLimit" class="quota-alert-text">
+            <i class="pi pi-info-circle"></i>
+            <span>{{ t('subscriptions.usage-warning') }}</span>
           </p>
         </div>
 
-        <!-- Projects quota -->
-        <div>
-          <div class="flex justify-between items-center text-xs mb-1.5">
-            <span class="font-medium text-gray-700">{{ t('subscriptions.usage-projects') }}</span>
-            <span class="font-bold text-gray-900">
-              {{ props.activeProjects }} proyectos activos
-            </span>
+        <div class="quota-submeta">
+          <div class="submeta-item">
+            <span class="submeta-label">{{ t('subscriptions.usage-projects') }}</span>
+            <span class="submeta-val">{{ props.activeProjects }} proyectos activos</span>
           </div>
-          <div class="flex items-center gap-2 text-[11px] text-gray-400">
-            <i class="pi pi-shield-check text-emerald-600"></i>
+          <div class="stripe-badge">
+            <i class="pi pi-shield"></i>
             <span>{{ t('subscriptions.billed-via') }}</span>
           </div>
         </div>
       </div>
 
-      <!-- 3. Actions (cols 3) -->
-      <div class="lg:col-span-3 flex flex-col gap-2.5 lg:pl-6 justify-center">
-        <pv-button
-          :label="isCancelled ? t('subscriptions.reactivate-plan') : t('subscriptions.renew-plan')"
-          icon="pi pi-sync"
-          :loading="props.isProcessing"
+      <!-- 3. Actions -->
+      <div class="hero-col hero-col-actions">
+        <button
+          type="button"
+          class="hero-btn hero-btn-renew"
           :disabled="props.isProcessing"
-          class="bg-emerald-600 hover:bg-emerald-700 border-none text-white font-semibold py-2 px-3 text-xs rounded-xl shadow-xs justify-center"
           @click="$emit('renew')"
-        />
+        >
+          <i v-if="props.isProcessing" class="pi pi-spin pi-spinner"></i>
+          <i v-else class="pi pi-sync"></i>
+          <span>{{ isCancelled ? t('subscriptions.reactivate-plan') : t('subscriptions.renew-plan') }}</span>
+        </button>
 
-        <pv-button
-          :label="t('subscriptions.view-invoices')"
-          icon="pi pi-receipt"
-          severity="secondary"
-          outlined
-          class="border-gray-300 text-gray-700 hover:bg-gray-50 py-2 px-3 text-xs rounded-xl justify-center font-medium"
+        <button
+          type="button"
+          class="hero-btn hero-btn-invoices"
           @click="$emit('view-invoices')"
-        />
+        >
+          <i class="pi pi-receipt"></i>
+          <span>{{ t('subscriptions.view-invoices') }}</span>
+        </button>
 
-        <pv-button
+        <button
           v-if="isActive"
-          :label="t('subscriptions.cancel-plan')"
-          severity="danger"
-          text
-          class="text-red-500 hover:text-red-700 text-xs py-1.5 justify-center"
+          type="button"
+          class="hero-btn hero-btn-cancel"
           :disabled="props.isProcessing"
           @click="$emit('cancel')"
-        />
+        >
+          <span>{{ t('subscriptions.cancel-plan') }}</span>
+        </button>
       </div>
     </div>
   </div>
@@ -181,6 +165,338 @@ const isNearLimit = computed(() => {
 
 <style scoped>
 .current-plan-card {
-  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+  background: #ffffff;
+  border-radius: 1.25rem;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.05);
+  padding: 1.75rem 2rem;
+  margin-bottom: 2.5rem;
+}
+
+/* Alert */
+.cancelled-alert {
+  background: #fef3c7;
+  border: 1px solid #fde68a;
+  color: #92400e;
+  font-size: 0.78rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.alert-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.alert-date {
+  font-weight: 700;
+  color: #78350f;
+}
+
+/* Grid Layout */
+.hero-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.3fr 0.8fr;
+  gap: 2rem;
+  align-items: center;
+}
+
+.hero-col {
+  display: flex;
+  flex-direction: column;
+}
+
+.hero-col-identity {
+  border-right: 1px solid #f1f5f9;
+  padding-right: 2rem;
+}
+
+.hero-col-quotas {
+  border-right: 1px solid #f1f5f9;
+  padding-right: 2rem;
+}
+
+.hero-col-actions {
+  gap: 0.65rem;
+  justify-content: center;
+}
+
+/* 1. Identity Styles */
+.identity-top {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.eyebrow {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #64748b;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.65rem;
+  border-radius: 9999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.status-dot {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 9999px;
+}
+
+.status-active {
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+.status-active .status-dot {
+  background: #10b981;
+}
+
+.status-cancelled {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.status-cancelled .status-dot {
+  background: #ef4444;
+}
+
+.hero-plan-title {
+  font-size: 1.65rem;
+  font-weight: 900;
+  color: #0f172a;
+  margin: 0 0 0.25rem 0;
+  letter-spacing: -0.02em;
+}
+
+.hero-plan-desc {
+  font-size: 0.8rem;
+  color: #64748b;
+  margin: 0 0 1rem 0;
+}
+
+.hero-price-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.25rem;
+  margin-bottom: 0.6rem;
+}
+
+.hero-price-amount {
+  font-size: 2rem;
+  font-weight: 900;
+  color: #0f172a;
+  letter-spacing: -0.03em;
+}
+
+.hero-price-period {
+  font-size: 0.85rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.hero-renewal {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.72rem;
+  color: #64748b;
+}
+
+.hero-renewal i {
+  color: #94a3b8;
+}
+
+.hero-renewal strong {
+  color: #1e293b;
+}
+
+/* 2. Quotas Styles */
+.quotas-header {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #475569;
+  margin-bottom: 1.25rem;
+}
+
+.quotas-header i {
+  color: #10b981;
+}
+
+.quota-item {
+  margin-bottom: 1.25rem;
+}
+
+.quota-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.78rem;
+  margin-bottom: 0.45rem;
+}
+
+.quota-label {
+  color: #334155;
+  font-weight: 600;
+}
+
+.quota-values {
+  color: #0f172a;
+}
+
+.quota-pct {
+  color: #94a3b8;
+  font-size: 0.72rem;
+  margin-left: 0.2rem;
+}
+
+.progress-track {
+  width: 100%;
+  height: 0.55rem;
+  background: #f1f5f9;
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: #10b981;
+  border-radius: 9999px;
+  transition: width 0.4s ease;
+}
+
+.progress-fill.progress-warning {
+  background: #f59e0b;
+}
+
+.quota-alert-text {
+  font-size: 0.72rem;
+  color: #b45309;
+  margin-top: 0.4rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.quota-submeta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.submeta-item {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.78rem;
+}
+
+.submeta-label {
+  color: #64748b;
+}
+
+.submeta-val {
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.stripe-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.7rem;
+  color: #94a3b8;
+}
+
+.stripe-badge i {
+  color: #10b981;
+}
+
+/* 3. Action Buttons */
+.hero-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.7rem 1rem;
+  border-radius: 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  font-family: inherit;
+  outline: none;
+}
+
+.hero-btn-renew {
+  background: #10b981;
+  color: #ffffff;
+  box-shadow: 0 4px 10px rgba(16, 185, 129, 0.2);
+}
+
+.hero-btn-renew:hover {
+  background: #059669;
+}
+
+.hero-btn-invoices {
+  background: #ffffff;
+  color: #334155;
+  border: 1.5px solid #cbd5e1;
+}
+
+.hero-btn-invoices:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+}
+
+.hero-btn-cancel {
+  background: transparent;
+  color: #ef4444;
+  font-size: 0.75rem;
+  padding: 0.4rem;
+}
+
+.hero-btn-cancel:hover {
+  color: #b91c1c;
+  text-decoration: underline;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .hero-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  .hero-col-identity,
+  .hero-col-quotas {
+    border-right: none;
+    border-bottom: 1px solid #f1f5f9;
+    padding-right: 0;
+    padding-bottom: 1.5rem;
+  }
 }
 </style>
