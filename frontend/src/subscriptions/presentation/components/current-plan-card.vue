@@ -7,221 +7,180 @@ const { t } = useI18n();
 const props = defineProps({
   plan: { type: Object, required: true },
   subscription: { type: Object, required: true },
-  isProcessing: { type: Boolean, default: false }
+  isProcessing: { type: Boolean, default: false },
+  totalDevices: { type: Number, default: 0 },
+  activeProjects: { type: Number, default: 0 }
 });
 
-defineEmits(['renew', 'cancel']);
+defineEmits(["renew", "cancel", "view-invoices", "compare-plans"]);
 
-const planFeatures = computed(() => {
-  const p = props.plan;
-  if (!p) return [];
-  if (Array.isArray(p.features) && p.features.length > 0) {
-    return p.features;
+const isActive = computed(() => {
+  return props.subscription?.status?.toLowerCase() === "active" ||
+         (typeof props.subscription?.isActive === "function" && props.subscription.isActive());
+});
+
+const isCancelled = computed(() => {
+  return props.subscription?.status?.toLowerCase() === "cancelled";
+});
+
+// Calculate next renewal date (e.g. 30 days after startDate or endDate)
+const renewalDateFormatted = computed(() => {
+  const start = props.subscription?.startDate ? new Date(props.subscription.startDate) : new Date();
+  const next = props.subscription?.endDate ? new Date(props.subscription.endDate) : new Date(start.getTime() + 30 * 24 * 60 * 60 * 1000);
+  return next.toLocaleDateString("es-ES", { year: "numeric", month: "long", day: "numeric" });
+});
+
+// Quota limits based on plan name
+const planLimits = computed(() => {
+  const name = props.plan?.name?.toLowerCase() || "";
+  if (name.includes("starter")) {
+    return { maxDevices: 50, maxProjects: 5, label: "50" };
   }
-  if (typeof p.featuresJson === 'string' && p.featuresJson.trim()) {
-    try {
-      const parsed = JSON.parse(p.featuresJson);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-    } catch (_) {}
+  if (name.includes("pro")) {
+    return { maxDevices: 200, maxProjects: 15, label: "200" };
   }
-  if (typeof p.features === 'string' && p.features.trim()) {
-    try {
-      const parsed = JSON.parse(p.features);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-    } catch (_) {}
-  }
-  return [];
+  return { maxDevices: Infinity, maxProjects: Infinity, label: "Ilimitados" };
+});
+
+const devicePercentage = computed(() => {
+  if (planLimits.value.maxDevices === Infinity) return 15;
+  const pct = Math.round((props.totalDevices / planLimits.value.maxDevices) * 100);
+  return Math.min(pct, 100);
+});
+
+const isNearLimit = computed(() => {
+  return planLimits.value.maxDevices !== Infinity && devicePercentage.value >= 80;
 });
 </script>
 
 <template>
-  <div class="current-plan-card border border-green-500 p-5 bg-white">
-    <h2 class="text-2xl font-bold mb-6 text-gray-800">
-      {{ plan.description }}
-    </h2>
-
-    <div class="mb-6">
-      <p class="text-4xl text-gray-900 mb-3 plan-price">
-        {{ typeof plan.getFormattedPrice === 'function' ? plan.getFormattedPrice() : `$${plan.price}` }}
-        <span class="text-lg font-normal text-gray-600">/{{ t("subscriptions.month") }}</span>
-      </p>
-      <p class="text-base text-gray-600" v-if="subscription.status">
-        {{ t("subscriptions.status") }}:
-        <span :class="subscription.isActive() ? 'text-green-600 font-bold text-lg' : 'text-red-600 font-bold text-lg'">
-          {{ t(`subscriptions.status-${subscription.status}`) }}
-        </span>
-      </p>
+  <div class="current-plan-card bg-white rounded-2xl border border-gray-200 shadow-sm p-6 mb-8 transition-all">
+    <!-- Cancelled notice banner if applicable -->
+    <div
+      v-if="isCancelled"
+      class="bg-amber-50 border border-amber-200 text-amber-800 text-xs px-4 py-2.5 rounded-xl mb-6 flex items-center justify-between gap-3"
+    >
+      <div class="flex items-center gap-2">
+        <i class="pi pi-exclamation-triangle text-amber-600"></i>
+        <span>{{ t('subscriptions.cancelled-notice') }}</span>
+      </div>
+      <span class="font-semibold text-amber-900">Vigente hasta {{ renewalDateFormatted }}</span>
     </div>
 
-    <ul class="flex flex-column gap-3 mb-8">
-      <li
-        v-for="(feature, i) in planFeatures"
-        :key="i"
-        class="flex align-items-start text-gray-700 text-lg"
-      >
-        <span class="text-green-500 mr-3 text-xl">✔</span> {{ feature }}
-      </li>
-    </ul>
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+      <!-- 1. Plan identity & pricing (cols 4) -->
+      <div class="lg:col-span-4 border-b lg:border-b-0 lg:border-r border-gray-100 pb-6 lg:pb-0 lg:pr-6">
+        <div class="flex items-center gap-2.5 mb-2">
+          <span class="text-xs uppercase tracking-wider font-semibold text-gray-400">
+            {{ t('subscriptions.current-plan') }}
+          </span>
+          <span
+            class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold"
+            :class="isActive ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'"
+          >
+            <span class="w-1.5 h-1.5 rounded-full" :class="isActive ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'"></span>
+            {{ isActive ? t('subscriptions.status-active') : t('subscriptions.status-cancelled') }}
+          </span>
+        </div>
 
-    <div class="flex flex-column gap-4">
-      <pv-button
-        :label="isProcessing ? 'Redirigiendo a Stripe...' : t('subscriptions.renew-plan')"
-        class="custom-green-button-large"
-        @click="$emit('renew')"
-        :disabled="isProcessing"
-        :loading="isProcessing"
-      />
-      <pv-button
-        :label="t('subscriptions.cancel-plan')"
-        outlined
-        severity="danger"
-        class="cancel-button-large"
-        @click="$emit('cancel')"
-        :disabled="!subscription.isActive() || isProcessing"
-      />
+        <h2 class="text-2xl font-extrabold text-gray-900 mb-1">
+          {{ plan.name }}
+        </h2>
+        <p class="text-xs text-gray-500 mb-4">{{ plan.description }}</p>
+
+        <div class="flex items-baseline gap-1 mb-2">
+          <span class="text-3xl font-black text-gray-900">${{ plan.price }}</span>
+          <span class="text-xs text-gray-500 font-medium">/ {{ t('subscriptions.month') }}</span>
+        </div>
+
+        <div class="flex items-center gap-2 text-[11px] text-gray-400">
+          <i class="pi pi-calendar text-xs"></i>
+          <span>{{ t('subscriptions.next-billing') }}: <strong class="text-gray-700 font-semibold">{{ renewalDateFormatted }}</strong></span>
+        </div>
+      </div>
+
+      <!-- 2. Quota & usage meters (cols 5) -->
+      <div class="lg:col-span-5 border-b lg:border-b-0 lg:border-r border-gray-100 pb-6 lg:pb-0 lg:px-6">
+        <h4 class="text-xs font-bold text-gray-700 uppercase tracking-wider mb-4 flex items-center gap-1.5">
+          <i class="pi pi-chart-bar text-emerald-600"></i>
+          {{ t('subscriptions.usage-title') }}
+        </h4>
+
+        <!-- Devices quota -->
+        <div class="mb-4">
+          <div class="flex justify-between items-center text-xs mb-1.5">
+            <span class="font-medium text-gray-700">{{ t('subscriptions.usage-devices') }}</span>
+            <span class="font-bold text-gray-900">
+              {{ props.totalDevices }} / {{ planLimits.label }}
+              <span v-if="planLimits.maxDevices !== Infinity" class="text-gray-400 font-normal">({{ devicePercentage }}%)</span>
+            </span>
+          </div>
+
+          <div class="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+            <div
+              class="h-full rounded-full transition-all duration-500"
+              :class="isNearLimit ? 'bg-amber-500' : 'bg-emerald-500'"
+              :style="{ width: `${devicePercentage}%` }"
+            ></div>
+          </div>
+
+          <p v-if="isNearLimit" class="text-[11px] text-amber-600 mt-1 flex items-center gap-1">
+            <i class="pi pi-info-circle text-[10px]"></i>
+            {{ t('subscriptions.usage-warning') }}
+          </p>
+        </div>
+
+        <!-- Projects quota -->
+        <div>
+          <div class="flex justify-between items-center text-xs mb-1.5">
+            <span class="font-medium text-gray-700">{{ t('subscriptions.usage-projects') }}</span>
+            <span class="font-bold text-gray-900">
+              {{ props.activeProjects }} proyectos activos
+            </span>
+          </div>
+          <div class="flex items-center gap-2 text-[11px] text-gray-400">
+            <i class="pi pi-shield-check text-emerald-600"></i>
+            <span>{{ t('subscriptions.billed-via') }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Actions (cols 3) -->
+      <div class="lg:col-span-3 flex flex-col gap-2.5 lg:pl-6 justify-center">
+        <pv-button
+          :label="isCancelled ? t('subscriptions.reactivate-plan') : t('subscriptions.renew-plan')"
+          icon="pi pi-sync"
+          :loading="props.isProcessing"
+          :disabled="props.isProcessing"
+          class="bg-emerald-600 hover:bg-emerald-700 border-none text-white font-semibold py-2 px-3 text-xs rounded-xl shadow-xs justify-center"
+          @click="$emit('renew')"
+        />
+
+        <pv-button
+          :label="t('subscriptions.view-invoices')"
+          icon="pi pi-receipt"
+          severity="secondary"
+          outlined
+          class="border-gray-300 text-gray-700 hover:bg-gray-50 py-2 px-3 text-xs rounded-xl justify-center font-medium"
+          @click="$emit('view-invoices')"
+        />
+
+        <pv-button
+          v-if="isActive"
+          :label="t('subscriptions.cancel-plan')"
+          severity="danger"
+          text
+          class="text-red-500 hover:text-red-700 text-xs py-1.5 justify-center"
+          :disabled="props.isProcessing"
+          @click="$emit('cancel')"
+        />
+      </div>
     </div>
   </div>
 </template>
 
 <style scoped>
 .current-plan-card {
-  justify-self: baseline;
-  max-width: 650px;
-  transform: scale(1.05);
-  border-width: 3px !important;
-  border-radius: 0.75rem;
-  box-shadow: 0 20px 50px rgba(16, 185, 129, 0.15), 0 10px 30px rgba(0, 0, 0, 0.1) !important;
-  position: relative;
-}
-
-.plan-price {
-  font-weight: 800;
-}
-
-.current-plan-card::before {
-  content: '';
-  position: absolute;
-  top: -2px;
-  left: -2px;
-  right: -2px;
-  bottom: -2px;
-  background: white;
-  border-radius: 14px;
-  z-index: -1;
-  animation: glow 2s ease-in-out infinite alternate;
-}
-
-@keyframes glow {
-  from { opacity: 0.6; }
-  to { opacity: 0.9; }
-}
-
-/* Responsividad para la tarjeta del plan actual */
-@media (max-width: 1024px) {
-  .current-plan-card {
-    transform: scale(1.02);
-    max-width: 100%;
-  }
-}
-
-@media (max-width: 768px) {
-  .current-plan-card {
-    transform: scale(1) !important;
-    max-width: 100% !important;
-    margin: 0 !important;
-    padding: 1.5rem !important;
-  }
-
-  /* Ajustar tamaños de texto en móvil */
-  .current-plan-card h2 {
-    font-size: 1.5rem !important;
-    margin-bottom: 1rem !important;
-  }
-
-  .current-plan-card .text-4xl {
-    font-size: 2.5rem !important;
-  }
-
-  .current-plan-card .text-lg {
-    font-size: 1rem !important;
-  }
-
-  .current-plan-card ul {
-    margin-bottom: 1.5rem !important;
-  }
-
-  .current-plan-card li {
-    font-size: 1rem !important;
-  }
-}
-
-@media (max-width: 480px) {
-  .current-plan-card {
-    padding: 1rem !important;
-  }
-
-  .current-plan-card h2 {
-    font-size: 1.25rem !important;
-    text-align: center !important;
-  }
-
-  .current-plan-card .text-4xl {
-    font-size: 2rem !important;
-    text-align: center !important;
-  }
-
-  .current-plan-card .text-base {
-    text-align: center !important;
-  }
-}
-
-:deep(.custom-green-button-large) {
-  background-color: #10B981 !important;
-  border-color: #10B981 !important;
-  color: white !important;
-  padding: 14px 28px !important;
-  font-size: 1.125rem !important;
-  font-weight: 600 !important;
-  border-radius: 8px !important;
-}
-
-:deep(.custom-green-button-large:hover) {
-  background-color: #059669 !important;
-  border-color: #059669 !important;
-  transform: translateY(-2px) !important;
-  box-shadow: 0 8px 25px rgba(16, 185, 129, 0.3) !important;
-}
-
-:deep(.custom-green-button-large:focus) {
-  box-shadow: 0 0 0 0.2rem rgba(16, 185, 129, 0.5) !important;
-}
-
-:deep(.cancel-button-large) {
-  padding: 14px 28px !important;
-  font-size: 1.125rem !important;
-  font-weight: 600 !important;
-  border-radius: 8px !important;
-}
-
-:deep(.cancel-button-large:hover) {
-  transform: translateY(-1px) !important;
-}
-
-/* Responsividad para botones */
-@media (max-width: 768px) {
-  :deep(.custom-green-button-large),
-  :deep(.cancel-button-large) {
-    width: 100% !important;
-    padding: 12px 20px !important;
-    font-size: 1rem !important;
-  }
-}
-
-@media (max-width: 480px) {
-  :deep(.custom-green-button-large),
-  :deep(.cancel-button-large) {
-    padding: 10px 16px !important;
-    font-size: 0.9rem !important;
-  }
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
 }
 </style>
