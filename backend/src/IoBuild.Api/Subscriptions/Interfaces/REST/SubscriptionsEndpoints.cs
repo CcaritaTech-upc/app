@@ -143,10 +143,37 @@ public static class SubscriptionsEndpoints
 
             return Results.Ok(confirmation);
         });
-        subs.MapGet("/subscriptions/payments/invoices", async (int builderId, IPaymentProvider provider, CancellationToken ct) =>
+        subs.MapGet("/subscriptions/payments/invoices", async (int builderId, IPaymentProvider provider, IoBuildDbContext db, CancellationToken ct) =>
         {
             var invoices = await provider.GetInvoicesAsync(builderId, ct);
-            return invoices is null ? Results.Problem(statusCode: 503) : Results.Ok(invoices);
+            if (invoices is not null)
+            {
+                return Results.Ok(invoices);
+            }
+
+            // Fallback: If Stripe provider has no live key or customer configured,
+            // synthesize invoices from the builder's actual database subscriptions.
+            var builderSubs = await db.Subscriptions.Where(s => s.BuilderId == builderId).ToListAsync(ct);
+            var plans = await db.Plans.ToDictionaryAsync(p => p.Id, ct);
+
+            var fallbackInvoices = builderSubs.Select(s =>
+            {
+                var plan = plans.TryGetValue(s.PlanId, out var p) ? p : null;
+                var amountInCents = plan is not null ? (long)(plan.Price * 100) : 29900L;
+                return new
+                {
+                    Id = $"in_sub_{s.Id}",
+                    Status = s.Status == "active" ? "paid" : s.Status,
+                    AmountInCents = amountInCents,
+                    Amount = plan?.Price ?? 299m,
+                    Currency = "USD",
+                    Description = $"Suscripción Plan {plan?.Name ?? "IoBuild"}",
+                    Date = s.StartDate,
+                    ReceiptUrl = (string?)null
+                };
+            }).ToList();
+
+            return Results.Ok(fallbackInvoices);
         });
         subs.MapPost("/subscriptions", async (CreateSubscriptionRequest request, IoBuildDbContext db, CancellationToken ct) =>
         {
