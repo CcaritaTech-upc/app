@@ -1,6 +1,6 @@
 <script setup lang="js">
 import { useI18n } from "vue-i18n";
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import { useRouter } from "vue-router";
 import LanguageSwitcher from "./language-switcher.vue";
 import { useProfileStore } from "../../../profiles/application/profile.store.js";
@@ -20,28 +20,24 @@ const toggleDrawer = () => {
   drawer.value = !drawer.value;
 };
 
-
 const currentUser = computed(() => iamStore.currentUser);
 const userRole = computed(() => currentUser.value?.role?.toLowerCase() || 'builder');
 const hasActiveSubscription = computed(() => isActiveStatus(subscriptionStore.currentSubscription?.status));
 
-
 onMounted(async () => {
   const userId = currentUser.value?.id;
-  if (userId && !profileStore.profileLoaded) {
-    await profileStore.fetchProfile(userId);
-    console.log('layout: fetched profile', profileStore.profile);
+  if (userId) {
+    if (!profileStore.profileLoaded || !profileStore.profile?.name) {
+      await profileStore.fetchProfile(userId);
+    }
 
-
-    if (profileStore.profile) {
+    if (profileStore.profile?.name || profileStore.profile?.username) {
       const payload = {
         username: profileStore.profile.username,
         name: profileStore.profile.name,
         photoUrl: profileStore.profile.photoUrl
       };
-      console.log('layout: updating IAM user with profile payload', payload);
       iamStore.updateUserProfile(payload);
-      console.log('layout: currentUser after update', iamStore.currentUser);
     }
   }
 
@@ -52,13 +48,32 @@ onMounted(async () => {
   }
 });
 
+// Keep IAM user profile synced whenever profile store changes
+watch(
+  () => [profileStore.profile?.name, profileStore.profile?.photoUrl, profileStore.profile?.username],
+  ([name, photoUrl, username]) => {
+    if (name || username || photoUrl) {
+      iamStore.updateUserProfile({ username, name, photoUrl });
+    }
+  }
+);
 
 const userName = computed(() => {
-  return currentUser.value?.username || currentUser.value?.name || 'Usuario';
+  return profileStore.profile?.name ||
+         currentUser.value?.name ||
+         profileStore.profile?.username ||
+         currentUser.value?.username ||
+         'Usuario';
 });
 
 const userPhoto = computed(() => {
-  return currentUser.value?.photoUrl || 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2240%22 height=%2240%22%3E%3Crect width=%2240%22 height=%2240%22 rx=%224%22 fill=%22%2310B981%22/%3E%3Ctext x=%2220%22 y=%2226%22 text-anchor=%22middle%22 fill=%22white%22 font-size=%2218%22 font-family=%22sans-serif%22%3EU%3C/text%3E%3C/svg%3E';
+  const photo = profileStore.profile?.photoUrl || currentUser.value?.photoUrl;
+  if (photo && photo !== 'undefined' && typeof photo === 'string' && photo.trim() !== '') {
+    return photo;
+  }
+  const name = userName.value && userName.value !== 'Usuario' ? userName.value.trim() : 'U';
+  const initial = name.charAt(0).toUpperCase();
+  return `data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2240%22 height=%2240%22%3E%3Crect width=%2240%22 height=%2240%22 rx=%2220%22 fill=%22%2310B981%22/%3E%3Ctext x=%2220%22 y=%2226%22 text-anchor=%22middle%22 fill=%22white%22 font-size=%2218%22 font-weight=%22bold%22 font-family=%22sans-serif%22%3E${initial}%3C/text%3E%3C/svg%3E`;
 });
 
 

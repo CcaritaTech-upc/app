@@ -3,6 +3,7 @@ import { ref } from "vue";
 import { ProfileAssembler } from "../infrastructure/profile.assembler.js";
 import { ProfileApi } from "../infrastructure/profile-api.js";
 import { Profile } from "../domain/model/profile.entity.js";
+import { useIamStore } from "../../iam/application/iam.store.js";
 
 const profileApi = new ProfileApi();
 
@@ -12,6 +13,22 @@ export const useProfileStore = defineStore('profile', () => {
     const isLoading = ref(false);
     const profileLoaded = ref(false);
     const errors = ref([]);
+
+    function syncWithIamStore(profileEntity) {
+        if (!profileEntity) return;
+        try {
+            const iamStore = useIamStore();
+            if (profileEntity.name || profileEntity.username || profileEntity.photoUrl) {
+                iamStore.updateUserProfile({
+                    username: profileEntity.username,
+                    name: profileEntity.name,
+                    photoUrl: profileEntity.photoUrl
+                });
+            }
+        } catch (_) {
+            // Pinia circular dependency safeguard
+        }
+    }
 
     async function fetchProfile(userId) {
         isLoading.value = true;
@@ -24,6 +41,7 @@ export const useProfileStore = defineStore('profile', () => {
             profile.value = profileEntity;
             viewType.value = (profileEntity.role || 'builder').toLowerCase();
             profileLoaded.value = true;
+            syncWithIamStore(profileEntity);
 
         } catch (error) {
             console.error('', error);
@@ -45,6 +63,7 @@ export const useProfileStore = defineStore('profile', () => {
             profile.value = profileEntity;
             viewType.value = (profileEntity.role || 'builder').toLowerCase();
             profileLoaded.value = true;
+            syncWithIamStore(profileEntity);
             return response;
         } catch (error) {
             console.error('Error creating profile:', error);
@@ -65,6 +84,7 @@ export const useProfileStore = defineStore('profile', () => {
             profile.value = profileEntity;
             viewType.value = (profileEntity.role || 'builder').toLowerCase();
             profileLoaded.value = true;
+            syncWithIamStore(profileEntity);
             return response;
         } catch (error) {
             console.error('Error updating profile:', error);

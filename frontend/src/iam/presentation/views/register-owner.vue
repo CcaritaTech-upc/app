@@ -442,6 +442,13 @@ async function handleRegister() {
     await profileStore.createProfile(profileData);
     console.log('Step 3: Profile created successfully');
 
+    // Immediately update IAM user in store and localStorage so layout header reflects name and photo
+    iamStore.updateUserProfile({
+      username: profileData.username,
+      name: profileData.name,
+      photoUrl: profileData.photoUrl
+    });
+
     successMessage.value = 'Registration successful! Redirecting...';
     
     // Redirect to home after 2 seconds
