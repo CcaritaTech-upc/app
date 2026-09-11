@@ -68,7 +68,6 @@ export const useAnalyticsStore = defineStore("analytics", () => {
             // deviceOptions (filtered by builder's projects) handles selection so
             // that devices from other builders are never auto-selected.
         } catch (error) {
-            errors.value.push(error);
             console.error('Error fetching devices for telemetry:', error);
         }
     }
@@ -78,7 +77,6 @@ export const useAnalyticsStore = defineStore("analytics", () => {
         try {
             deviceEnergyReadings.value = await analyticsApi.getDeviceEnergy(deviceId, from, to);
         } catch (error) {
-            errors.value.push(error);
             console.error('Error fetching device energy:', error);
             deviceEnergyReadings.value = [];
         } finally {
@@ -90,7 +88,6 @@ export const useAnalyticsStore = defineStore("analytics", () => {
         try {
             deviceStatus.value = await analyticsApi.getDeviceStatus(deviceId);
         } catch (error) {
-            errors.value.push(error);
             console.error('Error fetching device status:', error);
             deviceStatus.value = null;
         }
