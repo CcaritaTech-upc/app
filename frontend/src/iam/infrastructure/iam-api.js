@@ -47,4 +47,13 @@ export class IamApi extends BaseApi {
     getUserById(id) {
         return this.http.get(`${usersEndpoint}/${id}`);
     }
+
+    /**
+     * Check if builder assigned a unit or client record for this email
+     * @param {string} email - Email address to check
+     * @returns {Promise} Response with invitation/assignment details
+     */
+    checkInvitation(email) {
+        return this.http.get('/authentication/invitation', { params: { email } });
+    }
 }

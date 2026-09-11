@@ -87,6 +87,16 @@
             <!-- Step 2: Personal Information -->
             <pv-step-panel :value="2">
               <div class="step-content">
+                <!-- Builder assignment detection banner -->
+                <pv-message v-if="invitationInfo" severity="success" :closable="false" class="mb-4">
+                  <div class="flex items-center gap-2">
+                    <i class="pi pi-check-circle" style="font-size: 1.1rem;"></i>
+                    <span>
+                      ¡Asignación detectada! Tu cuenta se vinculará a la unidad <strong>{{ invitationInfo.unitNumber }}</strong> en <strong>{{ invitationInfo.projectName }}</strong>.
+                    </span>
+                  </div>
+                </pv-message>
+
           <!-- Photo URL -->
           <div class="mb-3">
             <label for="photoUrl" class="block mb-2">{{ $t('iam.registerOwner.photoUrl') }}</label>
@@ -228,10 +238,12 @@ import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useIamStore } from '../../application/iam.store.js';
 import { useProfileStore } from '../../../profiles/application/profile.store.js';
+import { IamApi } from '../../infrastructure/iam-api.js';
 
 const router = useRouter();
 const iamStore = useIamStore();
 const profileStore = useProfileStore();
+const iamApi = new IamApi();
 
 const currentStep = ref(1);
 
@@ -311,6 +323,34 @@ const registerForm = ref({
 const isLoading = ref(false);
 const errorMessage = ref('');
 const successMessage = ref('');
+const invitationInfo = ref(null);
+const checkingInvitation = ref(false);
+
+async function checkBuilderAssignment(email) {
+  if (!email || !email.includes('@')) return;
+  try {
+    checkingInvitation.value = true;
+    const res = await iamApi.checkInvitation(email.trim());
+    if (res?.data?.assigned) {
+      invitationInfo.value = res.data;
+      if (!registerForm.value.name && res.data.fullName) {
+        registerForm.value.name = res.data.fullName;
+      }
+      if (!registerForm.value.phoneNumber && res.data.phoneNumber) {
+        registerForm.value.phoneNumber = res.data.phoneNumber;
+      }
+      if (!registerForm.value.address) {
+        registerForm.value.address = res.data.address || (res.data.unitNumber ? `Unidad ${res.data.unitNumber}` : '');
+      }
+    } else {
+      invitationInfo.value = null;
+    }
+  } catch (err) {
+    console.debug('Invitation lookup failed or none found:', err);
+  } finally {
+    checkingInvitation.value = false;
+  }
+}
 
 function goToStep2() {
   errorMessage.value = '';
@@ -340,8 +380,9 @@ function goToStep2() {
     return;
   }
 
-  // All validations passed, move to next step
+  // All validations passed, move to next step and check for builder assignments
   currentStep.value = 2;
+  checkBuilderAssignment(registerForm.value.email);
 }
 
 async function handleRegister() {
