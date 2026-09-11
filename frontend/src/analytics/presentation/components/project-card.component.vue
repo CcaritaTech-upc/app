@@ -34,7 +34,7 @@ const getStatusColor = (status) => {
         <h4 class="project-name">{{ project.name }}</h4>
         <p class="project-location">
           <i class="pi pi-map-marker location-icon"></i>
-          {{ project.location }}
+          {{ project.location || 'N/A' }}
         </p>
       </div>
       <span class="project-status" :class="getStatusColor(project.status)">
@@ -48,7 +48,7 @@ const getStatusColor = (status) => {
           <i class="pi pi-building"></i>
         </span>
         <div class="stat-details">
-          <span class="stat-value-small">{{ project.occupiedUnits }}/{{ project.totalUnits }}</span>
+          <span class="stat-value-small">{{ project.occupiedUnits ?? 0 }}/{{ project.totalUnits ?? 0 }}</span>
           <span class="stat-label-small">{{ $t('analytics.common.units') }}</span>
         </div>
       </div>
@@ -58,7 +58,7 @@ const getStatusColor = (status) => {
           <i class="pi pi-box"></i>
         </span>
         <div class="stat-details">
-          <span class="stat-value-small">{{ project.deviceCount }}</span>
+          <span class="stat-value-small">{{ project.deviceCount ?? 0 }}</span>
           <span class="stat-label-small">{{ $t('analytics.common.devices') }}</span>
         </div>
       </div>
@@ -67,10 +67,10 @@ const getStatusColor = (status) => {
     <div class="progress-section">
       <div class="progress-header">
         <span class="progress-label">{{ $t('analytics.common.occupancy') }}</span>
-        <span class="progress-value">{{ project.occupancyRate.toFixed(1) }}%</span>
+        <span class="progress-value">{{ (project.occupancyRate ?? 0).toFixed(1) }}%</span>
       </div>
       <div class="progress-bar">
-        <div class="progress-fill" :style="{ width: `${project.occupancyRate}%` }"></div>
+        <div class="progress-fill" :style="{ width: `${Math.min(100, Math.max(0, project.occupancyRate ?? 0))}%` }"></div>
       </div>
     </div>
   </div>

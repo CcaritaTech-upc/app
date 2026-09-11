@@ -36,12 +36,12 @@ const timeRangeOptions = [
 // Filter devices to those belonging to this builder's projects only.
 // Without this guard, getAllDevices() returns devices from ALL builders.
 const builderProjectIds = computed(() =>
-  (props.dashboard?.projectsOverview ?? []).map(p => p.id)
+  (props.dashboard?.projectsOverview ?? []).map(p => Number(p.id))
 );
 
 const deviceOptions = computed(() =>
   analyticsStore.devices
-    .filter(d => builderProjectIds.value.includes(d.projectId))
+    .filter(d => builderProjectIds.value.includes(Number(d.projectId)))
     .map(d => ({ name: d.name, id: d.id }))
 );
 
@@ -313,29 +313,29 @@ const translateDeviceType = (type) => {
       />
       <StatCard
         :title="$t('analytics.builder.stats.occupiedUnits')"
-        :value="`${dashboard.occupiedUnits}/${dashboard.totalUnits}`"
+        :value="`${dashboard.occupiedUnits ?? 0}/${dashboard.totalUnits ?? 0}`"
         icon="pi-building"
         icon-bg-color="bg-purple-100"
         icon-text-color="text-purple-600"
-        :subtitle="`${dashboard.occupancyRate.toFixed(1)}% ${$t('analytics.builder.stats.occupancy')}`"
+        :subtitle="`${(dashboard.occupancyRate ?? 0).toFixed(1)}% ${$t('analytics.builder.stats.occupancy')}`"
       />
       <StatCard
         :title="$t('analytics.builder.stats.totalUnits')"
-        :value="dashboard.totalUnits"
+        :value="dashboard.totalUnits ?? 0"
         icon="pi-home"
         icon-bg-color="bg-orange-100"
         icon-text-color="text-orange-600"
       />
       <StatCard
         :title="$t('analytics.builder.stats.alerts')"
-        :value="dashboard.alertsCount"
+        :value="dashboard.alertsCount ?? 0"
         icon="pi-exclamation-triangle"
         icon-bg-color="bg-red-100"
         icon-text-color="text-red-600"
       />
       <StatCard
         :title="$t('analytics.builder.stats.energyEfficiency')"
-        :value="`${dashboard.energyEfficiencyAvg.toFixed(1)} kWh`"
+        :value="`${(dashboard.energyEfficiencyAvg ?? 0).toFixed(1)} kWh`"
         icon="pi-chart-line"
         icon-bg-color="bg-teal-100"
         icon-text-color="text-teal-600"
@@ -383,7 +383,7 @@ const translateDeviceType = (type) => {
       <h3 class="chart-title">Live Energy — Last {{ liveMinutes }} min</h3>
       <p class="chart-subtitle">Auto-refreshes every 30s</p>
       <div class="chart-wrapper">
-        <LiveEnergyChart :user-id="userId" role="builder" :minutes="liveMinutes" />
+        <LiveEnergyChart v-if="userId" :user-id="userId" role="builder" :minutes="liveMinutes" />
       </div>
     </div>
 
