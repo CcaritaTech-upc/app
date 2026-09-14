@@ -110,7 +110,13 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("GatewayCorsPolicy", policy =>
     {
-        policy.WithOrigins("http://localhost:5173", "http://localhost:3000")
+        var configuredOrigins = builder.Configuration["Cors:AllowedOrigins"]?
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var origins = configuredOrigins is { Length: > 0 }
+            ? configuredOrigins
+            : new[] { "http://localhost:5173", "http://localhost:3000" };
+
+        policy.WithOrigins(origins)
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials();
