@@ -18,8 +18,9 @@ export class SubscriptionApi extends BaseApi {
         // A builder can accumulate more than one subscription row over time
         // (e.g. cancel + renew); take the most recently started one for this builder.
         const builderSubs = allSubscriptions.filter(s => Number(s.builderId) === Number(builderId));
+        builderSubs.sort((a, b) => new Date(b.startDate || 0) - new Date(a.startDate || 0) || (b.id - a.id));
         const activeSub = builderSubs.find(s => String(s.status).toLowerCase() === 'active');
-        const mostRecent = activeSub || builderSubs.sort((a, b) => new Date(b.startDate) - new Date(a.startDate))[0];
+        const mostRecent = activeSub || builderSubs[0];
         return { data: mostRecent || null };
     }
 
@@ -42,7 +43,7 @@ export class SubscriptionApi extends BaseApi {
     createCheckoutSession(builderId, planId) {
         // El backend espera las URLs de success y cancel
         // Stripe agrega automáticamente el session_id como query parameter
-        const baseUrl = APP_URL;
+        const baseUrl = (typeof window !== 'undefined' && window.location?.origin) ? window.location.origin : APP_URL;
         const successUrl = `${baseUrl}/subscriptions/my-subscription?success=true`;
         const cancelUrl = `${baseUrl}/subscriptions/my-subscription?canceled=true`;
 

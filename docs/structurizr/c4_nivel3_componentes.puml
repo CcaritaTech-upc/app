@@ -1,0 +1,61 @@
+@startuml
+title <size:24>Component View: IoBuild Platform - API Monolito (IoBuild.Api)</size>\n<size:24>Nivel 3: Componentes del API Monolito</size>
+
+set separator none
+top to bottom direction
+
+<style>
+  root {
+    BackgroundColor: #ffffff
+    FontColor: #444444
+  }
+</style>
+
+!include <C4/C4>
+!include <C4/C4_Context>
+!include <C4/C4_Container>
+!include <C4/C4_Component>
+
+System(Stripe, "Stripe", $descr="Pasarela de pagos para checkout y suscripciones recurrentes.", $tags="", $link="")
+System(Cloudinary, "Cloudinary", $descr="Servicio cloud para subida, optimizacion y entrega de fotos de proyectos y perfiles.", $tags="", $link="")
+System(InfluxDBTimeSeriesDB, "InfluxDB (Time-Series DB)", $descr="Base de datos especializada para telemetria de dispositivos IoT de alta frecuencia.", $tags="", $link="")
+
+System_Boundary("IoBuildPlatform_boundary", "IoBuild Platform", $tags="") {
+  Container_Boundary("IoBuildPlatform.APIMonolitoIoBuildApi_boundary", "API Monolito (IoBuild.Api)", $tags="") {
+    Component(IoBuildPlatform.APIMonolitoIoBuildApi.ModuloPublishing, "Modulo Publishing", $techn="ASP.NET Core", $descr="Gestion de proyectos inmobiliarios, estructuras de pisos y departamentos, y asignacion de propietarios.", $tags="", $link="")
+    Component(IoBuildPlatform.APIMonolitoIoBuildApi.ModuloDevicesIoT, "Modulo Devices & IoT", $techn="ASP.NET Core", $descr="Registro de dispositivos, envio de comandos autorizados y puente de transporte MQTT bidireccional.", $tags="", $link="")
+    Component(IoBuildPlatform.APIMonolitoIoBuildApi.ModuloSubscriptions, "Modulo Subscriptions", $techn="ASP.NET Core", $descr="Catalogo de planes, creacion de sesiones checkout con Stripe y procesamiento de webhooks de pago.", $tags="", $link="")
+    Component(IoBuildPlatform.APIMonolitoIoBuildApi.ModuloAnalytics, "Modulo Analytics", $techn="ASP.NET Core", $descr="Consultas analiticas de consumo energetico en vivo, proyecciones LWW y sink de series de tiempo.", $tags="", $link="")
+    Component(IoBuildPlatform.APIMonolitoIoBuildApi.ModuloProfiles, "Modulo Profiles", $techn="ASP.NET Core", $descr="Perfiles de usuarios (builders/owners) y orquestacion de subida de fotos a Cloudinary.", $tags="", $link="")
+    Component(IoBuildPlatform.APIMonolitoIoBuildApi.ModuloPersistenceIoBuildDbContext, "Modulo Persistence (IoBuildDbContext)", $techn="Entity Framework Core", $descr="Unit of Work centralizado que gestiona DbSets, mapeos de entidades, transacciones y migraciones consolidadas.", $tags="", $link="")
+    Component(IoBuildPlatform.APIMonolitoIoBuildApi.ModuloIAM, "Modulo IAM", $techn="ASP.NET Core", $descr="Autenticacion, hashing BCrypt, emision de tokens JWT, revoked tokens y registro de usuarios.", $tags="", $link="")
+  }
+
+  Container(IoBuildPlatform.MosquittoMQTTBroker, "Mosquitto (MQTT Broker)", $techn="Eclipse Mosquitto", $descr="Broker pub/sub para mensajes de telemetria (telemetry/#) y ordenes (commands/#).", $tags="", $link="")
+  ContainerDb(IoBuildPlatform.MySQLDatabase, "MySQL Database", $techn="MySQL 8.0", $descr="Instancia centralizada de base de datos relacional para todas las tablas del sistema IoBuild.", $tags="", $link="")
+  Container(IoBuildPlatform.NginxReverseProxy, "Nginx (Reverse Proxy)", $techn="Nginx / Alpine", $descr="Expuesto en puerto 80: entrega estaticos de la SPA y redirige peticiones /api al backend.", $tags="", $link="")
+}
+
+Rel(IoBuildPlatform.NginxReverseProxy, IoBuildPlatform.APIMonolitoIoBuildApi.ModuloIAM, "Enruta /auth", $techn="HTTP", $tags="", $link="")
+Rel(IoBuildPlatform.NginxReverseProxy, IoBuildPlatform.APIMonolitoIoBuildApi.ModuloPublishing, "Enruta /projects", $techn="HTTP", $tags="", $link="")
+Rel(IoBuildPlatform.NginxReverseProxy, IoBuildPlatform.APIMonolitoIoBuildApi.ModuloDevicesIoT, "Enruta /devices", $techn="HTTP", $tags="", $link="")
+Rel(IoBuildPlatform.NginxReverseProxy, IoBuildPlatform.APIMonolitoIoBuildApi.ModuloSubscriptions, "Enruta /subscriptions", $techn="HTTP", $tags="", $link="")
+Rel(IoBuildPlatform.NginxReverseProxy, IoBuildPlatform.APIMonolitoIoBuildApi.ModuloAnalytics, "Enruta /analytics", $techn="HTTP", $tags="", $link="")
+Rel(IoBuildPlatform.NginxReverseProxy, IoBuildPlatform.APIMonolitoIoBuildApi.ModuloProfiles, "Enruta /profiles", $techn="HTTP", $tags="", $link="")
+Rel(IoBuildPlatform.APIMonolitoIoBuildApi.ModuloIAM, IoBuildPlatform.APIMonolitoIoBuildApi.ModuloPersistenceIoBuildDbContext, "Guarda usuarios", $techn="", $tags="", $link="")
+Rel(IoBuildPlatform.APIMonolitoIoBuildApi.ModuloPublishing, IoBuildPlatform.APIMonolitoIoBuildApi.ModuloPersistenceIoBuildDbContext, "Guarda proyectos y unidades", $techn="", $tags="", $link="")
+Rel(IoBuildPlatform.APIMonolitoIoBuildApi.ModuloDevicesIoT, IoBuildPlatform.APIMonolitoIoBuildApi.ModuloPersistenceIoBuildDbContext, "Guarda dispositivos", $techn="", $tags="", $link="")
+Rel(IoBuildPlatform.APIMonolitoIoBuildApi.ModuloSubscriptions, IoBuildPlatform.APIMonolitoIoBuildApi.ModuloPersistenceIoBuildDbContext, "Guarda planes y suscripciones", $techn="", $tags="", $link="")
+Rel(IoBuildPlatform.APIMonolitoIoBuildApi.ModuloAnalytics, IoBuildPlatform.APIMonolitoIoBuildApi.ModuloPersistenceIoBuildDbContext, "Consulta proyecciones", $techn="", $tags="", $link="")
+Rel(IoBuildPlatform.APIMonolitoIoBuildApi.ModuloProfiles, IoBuildPlatform.APIMonolitoIoBuildApi.ModuloPersistenceIoBuildDbContext, "Guarda perfiles", $techn="", $tags="", $link="")
+Rel(IoBuildPlatform.APIMonolitoIoBuildApi.ModuloPersistenceIoBuildDbContext, IoBuildPlatform.MySQLDatabase, "Ejecuta queries y transacciones SQL", $techn="MySQL Protocol :3306", $tags="", $link="")
+Rel(IoBuildPlatform.APIMonolitoIoBuildApi.ModuloSubscriptions, Stripe, "Crea sesiones checkout", $techn="HTTPS / REST", $tags="", $link="")
+Rel(Stripe, IoBuildPlatform.APIMonolitoIoBuildApi.ModuloSubscriptions, "Webhooks de cobro", $techn="HTTPS", $tags="", $link="")
+Rel(IoBuildPlatform.APIMonolitoIoBuildApi.ModuloProfiles, Cloudinary, "Sube fotos de perfil", $techn="HTTPS / REST", $tags="", $link="")
+Rel(IoBuildPlatform.APIMonolitoIoBuildApi.ModuloDevicesIoT, IoBuildPlatform.MosquittoMQTTBroker, "Publica comandos y suscribe", $techn="MQTT :1883", $tags="", $link="")
+Rel(IoBuildPlatform.MosquittoMQTTBroker, IoBuildPlatform.APIMonolitoIoBuildApi.ModuloDevicesIoT, "Entrega telemetria recibida", $techn="MQTT :1883", $tags="", $link="")
+Rel(IoBuildPlatform.APIMonolitoIoBuildApi.ModuloAnalytics, InfluxDBTimeSeriesDB, "Ingesta telemetria", $techn="HTTP :8086", $tags="", $link="")
+
+SHOW_LEGEND(true)
+hide stereotypes
+@enduml

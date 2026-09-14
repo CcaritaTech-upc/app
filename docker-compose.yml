@@ -22,8 +22,9 @@ services:
       - Cors__AllowedOrigins=${CORS_ALLOWED_ORIGINS:-*}
       - Stripe__SecretKey=${STRIPE_SECRET_KEY:-}
       - Stripe__PublishableKey=${VITE_STRIPE_PUBLISHABLE_KEY:-}
-      - Stripe__RestrictedApiKey=${STRIPE_RESTRICTED_API_KEY:-}
-      - Stripe__WebhookSecret=${STRIPE_WEBHOOK_SECRET:-}
+      - Stripe__RestrictedApiKey=${STRIPE_RESTRICTED_API_KEY:-rk_test_local}
+      - Stripe__UseSimulatedPayments=${STRIPE_USE_SIMULATED_PAYMENTS:-true}
+      - Stripe__WebhookSecret=${STRIPE_WEBHOOK_SECRET:-whsec_local_dev}
       - Cloudinary__CloudName=${CLOUDINARY_CLOUD_NAME:-}
       - Cloudinary__ApiKey=${CLOUDINARY_API_KEY:-}
       - Cloudinary__ApiSecret=${CLOUDINARY_API_SECRET:-}
@@ -38,6 +39,7 @@ services:
       - "8080"
     ports:
       - "8080:8080"
+      - "5080:8080"
 
   mysql-monolith:
     image: mysql:8.0

@@ -1,0 +1,64 @@
+graph TB
+  linkStyle default fill:#ffffff
+
+  subgraph diagram ["Component View: IoBuild Platform - API Monolito (IoBuild.Api)"]
+    style diagram fill:#ffffff,stroke:#ffffff
+
+    18["<div style='font-weight: bold'>Stripe</div><div style='font-size: 70%; margin-top: 0px'>[Software System]</div><div style='font-size: 80%; margin-top:10px'>Pasarela de pagos para<br />checkout y suscripciones<br />recurrentes.</div>"]
+    style 18 fill:#8a9ba8,stroke:#606c75,color:#ffffff
+    19["<div style='font-weight: bold'>Cloudinary</div><div style='font-size: 70%; margin-top: 0px'>[Software System]</div><div style='font-size: 80%; margin-top:10px'>Servicio cloud para subida,<br />optimizacion y entrega de<br />fotos de proyectos y<br />perfiles.</div>"]
+    style 19 fill:#8a9ba8,stroke:#606c75,color:#ffffff
+    21["<div style='font-weight: bold'>InfluxDB (Time-Series DB)</div><div style='font-size: 70%; margin-top: 0px'>[Software System]</div><div style='font-size: 80%; margin-top:10px'>Base de datos especializada<br />para telemetria de<br />dispositivos IoT de alta<br />frecuencia.</div>"]
+    style 21 fill:#8a9ba8,stroke:#606c75,color:#ffffff
+
+    subgraph 3 ["IoBuild Platform"]
+      style 3 fill:#ffffff,stroke:#0b4884,color:#0b4884
+
+      subgraph 8 ["API Monolito (IoBuild.Api)"]
+        style 8 fill:#ffffff,stroke:#1d4f8c,color:#1d4f8c
+
+        10["<div style='font-weight: bold'>Modulo Publishing</div><div style='font-size: 70%; margin-top: 0px'>[Component: ASP.NET Core]</div><div style='font-size: 80%; margin-top:10px'>Gestion de proyectos<br />inmobiliarios, estructuras de<br />pisos y departamentos, y<br />asignacion de propietarios.</div>"]
+        style 10 fill:#438dd5,stroke:#2e6295,color:#ffffff
+        11["<div style='font-weight: bold'>Modulo Devices & IoT</div><div style='font-size: 70%; margin-top: 0px'>[Component: ASP.NET Core]</div><div style='font-size: 80%; margin-top:10px'>Registro de dispositivos,<br />envio de comandos autorizados<br />y puente de transporte MQTT<br />bidireccional.</div>"]
+        style 11 fill:#438dd5,stroke:#2e6295,color:#ffffff
+        12["<div style='font-weight: bold'>Modulo Subscriptions</div><div style='font-size: 70%; margin-top: 0px'>[Component: ASP.NET Core]</div><div style='font-size: 80%; margin-top:10px'>Catalogo de planes, creacion<br />de sesiones checkout con<br />Stripe y procesamiento de<br />webhooks de pago.</div>"]
+        style 12 fill:#438dd5,stroke:#2e6295,color:#ffffff
+        13["<div style='font-weight: bold'>Modulo Analytics</div><div style='font-size: 70%; margin-top: 0px'>[Component: ASP.NET Core]</div><div style='font-size: 80%; margin-top:10px'>Consultas analiticas de<br />consumo energetico en vivo,<br />proyecciones LWW y sink de<br />series de tiempo.</div>"]
+        style 13 fill:#438dd5,stroke:#2e6295,color:#ffffff
+        14["<div style='font-weight: bold'>Modulo Profiles</div><div style='font-size: 70%; margin-top: 0px'>[Component: ASP.NET Core]</div><div style='font-size: 80%; margin-top:10px'>Perfiles de usuarios<br />(builders/owners) y<br />orquestacion de subida de<br />fotos a Cloudinary.</div>"]
+        style 14 fill:#438dd5,stroke:#2e6295,color:#ffffff
+        15["<div style='font-weight: bold'>Modulo Persistence (IoBuildDbContext)</div><div style='font-size: 70%; margin-top: 0px'>[Component: Entity Framework Core]</div><div style='font-size: 80%; margin-top:10px'>Unit of Work centralizado que<br />gestiona DbSets, mapeos de<br />entidades, transacciones y<br />migraciones consolidadas.</div>"]
+        style 15 fill:#438dd5,stroke:#2e6295,color:#ffffff
+        9["<div style='font-weight: bold'>Modulo IAM</div><div style='font-size: 70%; margin-top: 0px'>[Component: ASP.NET Core]</div><div style='font-size: 80%; margin-top:10px'>Autenticacion, hashing<br />BCrypt, emision de tokens<br />JWT, revoked tokens y<br />registro de usuarios.</div>"]
+        style 9 fill:#438dd5,stroke:#2e6295,color:#ffffff
+      end
+
+      16["<div style='font-weight: bold'>Mosquitto (MQTT Broker)</div><div style='font-size: 70%; margin-top: 0px'>[Container: Eclipse Mosquitto]</div><div style='font-size: 80%; margin-top:10px'>Broker pub/sub para mensajes<br />de telemetria (telemetry/#) y<br />ordenes (commands/#).</div>"]
+      style 16 fill:#2a72c9,stroke:#1d4f8c,color:#ffffff
+      17[("<div style='font-weight: bold'>MySQL Database</div><div style='font-size: 70%; margin-top: 0px'>[Container: MySQL 8.0]</div><div style='font-size: 80%; margin-top:10px'>Instancia centralizada de<br />base de datos relacional para<br />todas las tablas del sistema<br />IoBuild.</div>")]
+      style 17 fill:#1f618d,stroke:#154362,color:#ffffff
+      7["<div style='font-weight: bold'>Nginx (Reverse Proxy)</div><div style='font-size: 70%; margin-top: 0px'>[Container: Nginx / Alpine]</div><div style='font-size: 80%; margin-top:10px'>Expuesto en puerto 80:<br />entrega estaticos de la SPA y<br />redirige peticiones /api al<br />backend.</div>"]
+      style 7 fill:#2a72c9,stroke:#1d4f8c,color:#ffffff
+    end
+
+    7-. "<div>Enruta /auth</div><div style='font-size: 70%'>[HTTP]</div>" .->9
+    7-. "<div>Enruta /projects</div><div style='font-size: 70%'>[HTTP]</div>" .->10
+    7-. "<div>Enruta /devices</div><div style='font-size: 70%'>[HTTP]</div>" .->11
+    7-. "<div>Enruta /subscriptions</div><div style='font-size: 70%'>[HTTP]</div>" .->12
+    7-. "<div>Enruta /analytics</div><div style='font-size: 70%'>[HTTP]</div>" .->13
+    7-. "<div>Enruta /profiles</div><div style='font-size: 70%'>[HTTP]</div>" .->14
+    9-. "<div>Guarda usuarios</div><div style='font-size: 70%'></div>" .->15
+    10-. "<div>Guarda proyectos y unidades</div><div style='font-size: 70%'></div>" .->15
+    11-. "<div>Guarda dispositivos</div><div style='font-size: 70%'></div>" .->15
+    12-. "<div>Guarda planes y suscripciones</div><div style='font-size: 70%'></div>" .->15
+    13-. "<div>Consulta proyecciones</div><div style='font-size: 70%'></div>" .->15
+    14-. "<div>Guarda perfiles</div><div style='font-size: 70%'></div>" .->15
+    15-. "<div>Ejecuta queries y<br />transacciones SQL</div><div style='font-size: 70%'>[MySQL Protocol :3306]</div>" .->17
+    12-. "<div>Crea sesiones checkout</div><div style='font-size: 70%'>[HTTPS / REST]</div>" .->18
+    18-. "<div>Webhooks de cobro</div><div style='font-size: 70%'>[HTTPS]</div>" .->12
+    14-. "<div>Sube fotos de perfil</div><div style='font-size: 70%'>[HTTPS / REST]</div>" .->19
+    11-. "<div>Publica comandos y suscribe</div><div style='font-size: 70%'>[MQTT :1883]</div>" .->16
+    16-. "<div>Entrega telemetria recibida</div><div style='font-size: 70%'>[MQTT :1883]</div>" .->11
+    13-. "<div>Ingesta telemetria</div><div style='font-size: 70%'>[HTTP :8086]</div>" .->21
+
+  end

@@ -14,11 +14,22 @@ public static class StripeRestrictedKeyResolver
 {
     public static string? Resolve(IConfiguration configuration)
     {
-        var key = configuration["Stripe:RestrictedApiKey"];
-        return IsRestrictedKey(key) ? key : null;
+        var restricted = configuration["Stripe:RestrictedApiKey"];
+        if (IsRestrictedKey(restricted)) return restricted;
+
+        var secret = configuration["Stripe:SecretKey"];
+        if (IsRestrictedKey(secret)) return secret;
+
+        // Fallback to simulated local key only when neither key is configured
+        if (configuration.GetValue<bool>("Stripe:UseSimulatedPayments") || (string.IsNullOrWhiteSpace(restricted) && string.IsNullOrWhiteSpace(secret)))
+        {
+            return "rk_test_local";
+        }
+
+        return null;
     }
 
-    public static bool IsRestrictedKey(string? key) => !string.IsNullOrWhiteSpace(key) && key.StartsWith("rk_", StringComparison.Ordinal);
+    public static bool IsRestrictedKey(string? key) => !string.IsNullOrWhiteSpace(key) && (key.StartsWith("rk_", StringComparison.Ordinal) || key.StartsWith("sk_", StringComparison.Ordinal));
 }
 
 public sealed record StripeIntegrationOptions(string RestrictedApiKey, bool UsesDynamicPaymentMethods)

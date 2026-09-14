@@ -28,4 +28,6 @@ export const TOAST_AUTH_ERROR_DURATION_MS = 5000;
 export const CLOUDINARY_WIDGET_URL =
     import.meta.env.VITE_CLOUDINARY_WIDGET_URL || 'https://widget.cloudinary.com/v2.0/global/all.js';
 
-export const APP_URL = import.meta.env.VITE_APP_URL || window.location.origin;
+export const APP_URL = (typeof window !== 'undefined' && window.location?.origin)
+    ? window.location.origin
+    : (import.meta.env.VITE_APP_URL || 'http://localhost');

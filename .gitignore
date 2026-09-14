@@ -36,3 +36,6 @@ Thumbs.db
 __pycache__/
 *.py[cod]
 *$py.class
+
+# Nested repositories
+mobile-app/

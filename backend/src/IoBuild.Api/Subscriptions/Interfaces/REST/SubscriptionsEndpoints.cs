@@ -129,6 +129,17 @@ public static class SubscriptionsEndpoints
             if (confirmation is null) return Results.Problem(statusCode: 503);
 
             var existing = await db.Subscriptions.FirstOrDefaultAsync(s => s.BuilderId == confirmation.BuilderId && s.PlanId == confirmation.PlanId && s.Status == "active", ct);
+            
+            // Deactivate any other active subscriptions for this builder
+            var otherActiveSubs = await db.Subscriptions
+                .Where(s => s.BuilderId == confirmation.BuilderId && s.Status == "active" && (existing == null || s.Id != existing.Id))
+                .ToListAsync(ct);
+            foreach (var sub in otherActiveSubs)
+            {
+                sub.Status = "expired";
+                sub.EndDate = DateTime.UtcNow;
+            }
+
             if (existing is null)
             {
                 db.Subscriptions.Add(new Subscription
@@ -138,8 +149,8 @@ public static class SubscriptionsEndpoints
                     Status = "active",
                     StartDate = DateTime.UtcNow
                 });
-                await db.SaveChangesAsync(ct);
             }
+            await db.SaveChangesAsync(ct);
 
             return Results.Ok(confirmation);
         });

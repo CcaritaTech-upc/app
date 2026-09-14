@@ -1,0 +1,64 @@
+graph LR
+  linkStyle default fill:#ffffff
+
+  subgraph diagram ["Container View: IoBuild Platform"]
+    style diagram fill:#ffffff,stroke:#ffffff
+
+    1["<div style='font-weight: bold'>Constructor / Inmobiliaria</div><div style='font-size: 70%; margin-top: 0px'>[Person]</div><div style='font-size: 80%; margin-top:10px'>Crea proyectos inmobiliarios,<br />define pisos/unidades,<br />gestiona suscripciones de<br />planes y analiza metricas.</div>"]
+    style 1 fill:#08427b,stroke:#052e56,color:#ffffff
+    2["<div style='font-weight: bold'>Propietario / Residente</div><div style='font-size: 70%; margin-top: 0px'>[Person]</div><div style='font-size: 80%; margin-top:10px'>Monitorea su unidad<br />habitacional, registra<br />dispositivos IoT y envia<br />ordenes de control remoto.</div>"]
+    style 2 fill:#08427b,stroke:#052e56,color:#ffffff
+    18["<div style='font-weight: bold'>Stripe</div><div style='font-size: 70%; margin-top: 0px'>[Software System]</div><div style='font-size: 80%; margin-top:10px'>Pasarela de pagos para<br />checkout y suscripciones<br />recurrentes.</div>"]
+    style 18 fill:#8a9ba8,stroke:#606c75,color:#ffffff
+    19["<div style='font-weight: bold'>Cloudinary</div><div style='font-size: 70%; margin-top: 0px'>[Software System]</div><div style='font-size: 80%; margin-top:10px'>Servicio cloud para subida,<br />optimizacion y entrega de<br />fotos de proyectos y<br />perfiles.</div>"]
+    style 19 fill:#8a9ba8,stroke:#606c75,color:#ffffff
+    20["<div style='font-weight: bold'>Dispositivos IoT y Sensores</div><div style='font-size: 70%; margin-top: 0px'>[Software System]</div><div style='font-size: 80%; margin-top:10px'>Sensores de<br />energia/temperatura y<br />actuadores en departamentos<br />(HVAC, luces).</div>"]
+    style 20 fill:#8a9ba8,stroke:#606c75,color:#ffffff
+    21["<div style='font-weight: bold'>InfluxDB (Time-Series DB)</div><div style='font-size: 70%; margin-top: 0px'>[Software System]</div><div style='font-size: 80%; margin-top:10px'>Base de datos especializada<br />para telemetria de<br />dispositivos IoT de alta<br />frecuencia.</div>"]
+    style 21 fill:#8a9ba8,stroke:#606c75,color:#ffffff
+    22["<div style='font-weight: bold'>Jaeger / OpenTelemetry</div><div style='font-size: 70%; margin-top: 0px'>[Software System]</div><div style='font-size: 80%; margin-top:10px'>Plataforma de observabilidad<br />y trazado distribuido del<br />sistema.</div>"]
+    style 22 fill:#8a9ba8,stroke:#606c75,color:#ffffff
+
+    subgraph 3 ["IoBuild Platform"]
+      style 3 fill:#ffffff,stroke:#0b4884,color:#0b4884
+
+      16["<div style='font-weight: bold'>Mosquitto (MQTT Broker)</div><div style='font-size: 70%; margin-top: 0px'>[Container: Eclipse Mosquitto]</div><div style='font-size: 80%; margin-top:10px'>Broker pub/sub para mensajes<br />de telemetria (telemetry/#) y<br />ordenes (commands/#).</div>"]
+      style 16 fill:#2a72c9,stroke:#1d4f8c,color:#ffffff
+      17[("<div style='font-weight: bold'>MySQL Database</div><div style='font-size: 70%; margin-top: 0px'>[Container: MySQL 8.0]</div><div style='font-size: 80%; margin-top:10px'>Instancia centralizada de<br />base de datos relacional para<br />todas las tablas del sistema<br />IoBuild.</div>")]
+      style 17 fill:#1f618d,stroke:#154362,color:#ffffff
+      4["<div style='font-weight: bold'>Landing Page</div><div style='font-size: 70%; margin-top: 0px'>[Container: HTML / CSS / JS]</div><div style='font-size: 80%; margin-top:10px'>Sitio web publico que<br />presenta la propuesta de<br />valor y capta constructores.</div>"]
+      style 4 fill:#2a72c9,stroke:#1d4f8c,color:#ffffff
+      5["<div style='font-weight: bold'>Web SPA</div><div style='font-size: 70%; margin-top: 0px'>[Container: Vue 3, Vite, PrimeVue]</div><div style='font-size: 80%; margin-top:10px'>Plataforma web donde los<br />usuarios gestionan proyectos,<br />suscripciones y dispositivos.</div>"]
+      style 5 fill:#2a72c9,stroke:#1d4f8c,color:#ffffff
+      6["<div style='font-weight: bold'>Mobile App</div><div style='font-size: 70%; margin-top: 0px'>[Container: Android, Kotlin]</div><div style='font-size: 80%; margin-top:10px'>App movil nativa para que<br />propietarios y constructores<br />gestionen dispositivos.</div>"]
+      style 6 fill:#2a72c9,stroke:#1d4f8c,color:#ffffff
+      7["<div style='font-weight: bold'>Nginx (Reverse Proxy)</div><div style='font-size: 70%; margin-top: 0px'>[Container: Nginx / Alpine]</div><div style='font-size: 80%; margin-top:10px'>Expuesto en puerto 80:<br />entrega estaticos de la SPA y<br />redirige peticiones /api al<br />backend.</div>"]
+      style 7 fill:#2a72c9,stroke:#1d4f8c,color:#ffffff
+      8["<div style='font-weight: bold'>API Monolito (IoBuild.Api)</div><div style='font-size: 70%; margin-top: 0px'>[Container: ASP.NET Core 9, C#]</div><div style='font-size: 80%; margin-top:10px'>Backend monolitico modular<br />que aloja IAM, Publishing,<br />Devices, Subscriptions,<br />Analytics y Profiles.</div>"]
+      style 8 fill:#2a72c9,stroke:#1d4f8c,color:#ffffff
+    end
+
+    1-. "<div>Visita para conocer</div><div style='font-size: 70%'>[HTTPS]</div>" .->4
+    4-. "<div>Redirige a login</div><div style='font-size: 70%'>[HTTPS]</div>" .->5
+    1-. "<div>Ingreso directo</div><div style='font-size: 70%'>[HTTPS]</div>" .->5
+    1-. "<div>Usa app movil</div><div style='font-size: 70%'>[Android UI]</div>" .->6
+    2-. "<div>Usa plataforma</div><div style='font-size: 70%'>[HTTPS]</div>" .->5
+    2-. "<div>Usa app movil</div><div style='font-size: 70%'>[Android UI]</div>" .->6
+    5-. "<div>Peticiones /api</div><div style='font-size: 70%'>[HTTPS]</div>" .->7
+    6-. "<div>Peticiones /api</div><div style='font-size: 70%'>[HTTPS]</div>" .->7
+    7-. "<div>Sirve archivos SPA</div><div style='font-size: 70%'>[HTTP]</div>" .->5
+    7-. "<div>Proxy inverso a :8080</div><div style='font-size: 70%'>[HTTP]</div>" .->8
+    8-. "<div>Ejecuta queries y<br />transacciones SQL</div><div style='font-size: 70%'>[MySQL Protocol :3306]</div>" .->17
+    5-. "<div>Redirige a checkout</div><div style='font-size: 70%'>[HTTPS / Stripe.js]</div>" .->18
+    8-. "<div>Crea sesiones checkout</div><div style='font-size: 70%'>[HTTPS / REST]</div>" .->18
+    18-. "<div>Webhooks de cobro</div><div style='font-size: 70%'>[HTTPS]</div>" .->8
+    5-. "<div>Sube/descarga fotos</div><div style='font-size: 70%'>[HTTPS]</div>" .->19
+    8-. "<div>Sube fotos de perfil</div><div style='font-size: 70%'>[HTTPS / REST]</div>" .->19
+    8-. "<div>Publica comandos y suscribe</div><div style='font-size: 70%'>[MQTT :1883]</div>" .->16
+    16-. "<div>Entrega telemetria recibida</div><div style='font-size: 70%'>[MQTT :1883]</div>" .->8
+    8-. "<div>Ingesta telemetria</div><div style='font-size: 70%'>[HTTP :8086]</div>" .->21
+    8-. "<div>Envia trazas OTLP</div><div style='font-size: 70%'>[gRPC :4317]</div>" .->22
+    20-. "<div>Publica lecturas sensor</div><div style='font-size: 70%'>[MQTT :1883]</div>" .->16
+    16-. "<div>Recibe comandos actuador</div><div style='font-size: 70%'>[MQTT :1883]</div>" .->20
+
+  end

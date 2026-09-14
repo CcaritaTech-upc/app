@@ -13,11 +13,15 @@ public sealed class WorkflowExecutor(IoBuildDbContext dbContext)
 {
     public async Task<TResult> ExecuteAsync<TResult>(Func<CancellationToken, Task<TResult>> work, CancellationToken cancellationToken = default)
     {
-        await using IDbContextTransaction? transaction = dbContext.Database.IsRelational()
-            ? await dbContext.Database.BeginTransactionAsync(cancellationToken) : null;
-        var result = await work(cancellationToken);
-        await dbContext.SaveChangesAsync(cancellationToken);
-        if (transaction is not null) await transaction.CommitAsync(cancellationToken);
-        return result;
+        var strategy = dbContext.Database.CreateExecutionStrategy();
+        return await strategy.ExecuteAsync(async () =>
+        {
+            await using IDbContextTransaction? transaction = dbContext.Database.IsRelational()
+                ? await dbContext.Database.BeginTransactionAsync(cancellationToken) : null;
+            var result = await work(cancellationToken);
+            await dbContext.SaveChangesAsync(cancellationToken);
+            if (transaction is not null) await transaction.CommitAsync(cancellationToken);
+            return result;
+        });
     }
 }
