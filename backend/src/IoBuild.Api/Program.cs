@@ -43,9 +43,25 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
-var connectionString = builder.Configuration.GetConnectionString("IoBuild") ?? "Server=localhost;Port=3306;Database=iobuild;User=root;Password=root;";
-var jwtSecret = builder.Configuration["Jwt:Secret"] ?? "iobuild-development-secret-must-be-replaced-before-production";
+var rawConn = builder.Configuration.GetConnectionString("IoBuild")
+    ?? builder.Configuration["ConnectionStrings:IoBuild"]
+    ?? Environment.GetEnvironmentVariable("ConnectionStrings__IoBuild")
+    ?? Environment.GetEnvironmentVariable("ConnectionStrings:IoBuild")
+    ?? Environment.GetEnvironmentVariable("CONNECTIONSTRINGS_IOBUILD");
+
+var connectionString = !string.IsNullOrWhiteSpace(rawConn)
+    ? rawConn
+    : (Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER") == "true"
+        ? "Server=mysql-monolith;Port=3306;Database=iobuild;User=root;Password=iobuild;"
+        : "Server=localhost;Port=3306;Database=iobuild;User=root;Password=root;");
+
+var rawSecret = builder.Configuration["Jwt:Secret"]
+    ?? Environment.GetEnvironmentVariable("Jwt__Secret")
+    ?? Environment.GetEnvironmentVariable("JWT_SECRET");
+var jwtSecret = !string.IsNullOrWhiteSpace(rawSecret) ? rawSecret : "iobuild-development-secret-must-be-replaced-before-production";
+
+Console.WriteLine($"[IoBuild] Environment: {builder.Environment.EnvironmentName} | Container: {Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER")}");
+Console.WriteLine($"[IoBuild] Using ConnectionString: {connectionString.Split(';').FirstOrDefault(p => p.StartsWith("Server", StringComparison.OrdinalIgnoreCase))};Database=iobuild;");
 
 ServerVersion serverVersion;
 try
@@ -57,7 +73,12 @@ catch
     serverVersion = new MySqlServerVersion(new Version(8, 0, 36));
 }
 
-builder.Services.AddDbContext<IoBuildDbContext>(options => options.UseMySql(connectionString, serverVersion));
+builder.Services.AddDbContext<IoBuildDbContext>(options =>
+    options.UseMySql(connectionString, serverVersion, mySqlOptions =>
+        mySqlOptions.EnableRetryOnFailure(
+            maxRetryCount: 10,
+            maxRetryDelay: TimeSpan.FromSeconds(5),
+            errorNumbersToAdd: null)));
 builder.Services.AddSingleton<MigrationReadiness>();
 builder.Services.AddSingleton<CutoverReadiness>();
 builder.Services.AddScoped<ICutoverHarness, CutoverHarness>();
@@ -112,14 +133,24 @@ builder.Services.AddCors(options =>
     {
         var configuredOrigins = builder.Configuration["Cors:AllowedOrigins"]?
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        var origins = configuredOrigins is { Length: > 0 }
-            ? configuredOrigins
-            : new[] { "http://localhost:5173", "http://localhost:3000" };
+        if (configuredOrigins is { Length: > 0 } && configuredOrigins.Contains("*"))
+        {
+            policy.SetIsOriginAllowed(_ => true)
+                  .AllowAnyHeader()
+                  .AllowAnyMethod()
+                  .AllowCredentials();
+        }
+        else
+        {
+            var origins = configuredOrigins is { Length: > 0 }
+                ? configuredOrigins
+                : new[] { "http://localhost:5173", "http://localhost:3000" };
 
-        policy.WithOrigins(origins)
-              .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials();
+            policy.WithOrigins(origins)
+                  .AllowAnyHeader()
+                  .AllowAnyMethod()
+                  .AllowCredentials();
+        }
     });
 });
 builder.Services.AddIoBuildObservability(builder.Configuration);

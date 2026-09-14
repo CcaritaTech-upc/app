@@ -1,0 +1,11 @@
+.git
+.github
+docs
+mobile-app
+**/.vs
+**/.vscode
+**/bin
+**/obj
+**/node_modules
+**/dist
+**/__pycache__

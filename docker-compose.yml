@@ -11,32 +11,40 @@ services:
     restart: unless-stopped
     environment:
       - ASPNETCORE_URLS=http://+:8080
-      - ConnectionStrings__IoBuild=Server=mysql-monolith;Port=3306;Database=iobuild;User=root;Password=iobuild
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__IoBuild=${ConnectionStrings__IoBuild:-Server=mysql-monolith;Port=3306;Database=iobuild;User=root;Password=${DB_PASSWORD:-iobuild}}
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4317
       - Migrations__ApplyOnStartup=true
       - Mqtt__Enabled=true
       - Mqtt__Host=mosquitto
       - Mqtt__Port=1883
+      - Jwt__Secret=${JWT_SECRET:-iobuild-production-secret-must-be-replaced-in-prod-32chars!}
+      - Cors__AllowedOrigins=${CORS_ALLOWED_ORIGINS:-*}
+      - Stripe__SecretKey=${STRIPE_SECRET_KEY:-}
+      - Stripe__PublishableKey=${VITE_STRIPE_PUBLISHABLE_KEY:-}
+      - Stripe__RestrictedApiKey=${STRIPE_RESTRICTED_API_KEY:-}
+      - Stripe__WebhookSecret=${STRIPE_WEBHOOK_SECRET:-}
+      - Cloudinary__CloudName=${CLOUDINARY_CLOUD_NAME:-}
+      - Cloudinary__ApiKey=${CLOUDINARY_API_KEY:-}
+      - Cloudinary__ApiSecret=${CLOUDINARY_API_SECRET:-}
     depends_on:
       mysql-monolith:
         condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 40s
+      mosquitto:
+        condition: service_started
     networks:
       - iobuild-network
     expose:
       - "8080"
+    ports:
+      - "8080:8080"
 
   mysql-monolith:
     image: mysql:8.0
     container_name: iobuild-mysql-monolith
     restart: unless-stopped
     environment:
-      - MYSQL_ROOT_PASSWORD=iobuild
+      - MYSQL_ROOT_PASSWORD=${DB_PASSWORD:-iobuild}
       - MYSQL_DATABASE=iobuild
     volumes:
       - mysql_monolith_data:/var/lib/mysql
@@ -53,6 +61,10 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        - VITE_CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME:-}
+        - VITE_CLOUDINARY_UPLOAD_PRESET=${VITE_CLOUDINARY_UPLOAD_PRESET:-}
+        - VITE_STRIPE_PUBLISHABLE_KEY=${VITE_STRIPE_PUBLISHABLE_KEY:-}
     container_name: iobuild-frontend
     restart: unless-stopped
     depends_on:
@@ -119,7 +131,7 @@ services:
       - telemetry
       - full
 
-  # Mosquitto — optional MQTT broker (profile-gated)
+  # Mosquitto — MQTT broker
   mosquitto:
     image: eclipse-mosquitto:2-openssl
     container_name: iobuild-mosquitto
@@ -131,11 +143,8 @@ services:
       - mosquitto_data:/mosquitto/data
     networks:
       - iobuild-network
-    profiles:
-      - telemetry
-      - full
 
-  # Simulator — dynamic IoT telemetry generator (profile-gated)
+  # Simulator — dynamic IoT telemetry generator
   simulator:
     build:
       context: ./iot-simulator
@@ -149,9 +158,6 @@ services:
       - mosquitto
     networks:
       - iobuild-network
-    profiles:
-      - telemetry
-      - full
 
 networks:
   iobuild-network:
