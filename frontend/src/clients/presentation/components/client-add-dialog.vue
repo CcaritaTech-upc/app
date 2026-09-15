@@ -2,6 +2,7 @@
 import { ref, watch, computed, onMounted } from 'vue';
 import { Client } from '../../domain/model/client.entity.js';
 import { ProjectsFacade } from '../../infrastructure/projects.facade.js';
+import { isValidEmail, isValidPhone, isValidName } from '../../../shared/presentation/validators.js';
 
 const props = defineProps({
   visible: {
@@ -14,6 +15,7 @@ const emit = defineEmits(['update:visible', 'save']);
 
 const projectsFacade = new ProjectsFacade();
 const localVisible = ref(props.visible);
+const errors = ref({});
 const projects = ref([]);
 const units = ref([]);
 const loadingUnits = ref(false);
@@ -60,6 +62,7 @@ const unitOptions = computed(() => {
 
 watch(() => props.visible, (newVal) => {
   localVisible.value = newVal;
+  errors.value = {};
   if (newVal) {
     // Reset form when dialog opens
     formData.value = new Client({
@@ -112,26 +115,50 @@ watch(() => formData.value.unitId, (newUnitId) => {
   }
 });
 
-const isValid = computed(() =>
-  !!formData.value.fullName && !!formData.value.email && !!formData.value.projectId
-);
-
 const handleSave = () => {
-  // A client must belong to a project — the backend requires ProjectId/ProjectName.
-  if (!formData.value.fullName || !formData.value.email) {
-    alert('Please fill in at least Full Name and Email');
+  errors.value = {};
+
+  const fullName = (formData.value.fullName || '').trim();
+  const email = (formData.value.email || '').trim();
+  const phoneNumber = (formData.value.phoneNumber || '').trim();
+  const address = (formData.value.address || '').trim();
+  const projectId = formData.value.projectId;
+
+  if (!fullName) {
+    errors.value.fullName = 'El nombre completo es obligatorio.';
+  } else if (!isValidName(fullName, 2)) {
+    errors.value.fullName = 'El nombre completo debe tener al menos 2 caracteres.';
+  }
+
+  if (!email) {
+    errors.value.email = 'El correo electrónico es obligatorio.';
+  } else if (!isValidEmail(email)) {
+    errors.value.email = 'Ingrese un correo electrónico válido (ejemplo: usuario@empresa.com).';
+  }
+
+  if (phoneNumber && !isValidPhone(phoneNumber)) {
+    errors.value.phoneNumber = 'Ingrese un número telefónico válido (de 7 a 15 dígitos numéricos).';
+  }
+
+  if (!projectId) {
+    errors.value.projectId = 'Debe seleccionar un proyecto para este cliente.';
+  }
+
+  if (Object.keys(errors.value).length > 0) {
     return;
   }
-  if (!formData.value.projectId) {
-    alert('Please select a project');
-    return;
-  }
+
+  formData.value.fullName = fullName;
+  formData.value.email = email;
+  formData.value.phoneNumber = phoneNumber;
+  formData.value.address = address;
 
   emit('save', formData.value);
   localVisible.value = false;
 };
 
 const handleCancel = () => {
+  errors.value = {};
   localVisible.value = false;
 };
 </script>
@@ -151,8 +178,10 @@ const handleCancel = () => {
           id="fullName"
           v-model="formData.fullName"
           class="w-full"
+          :invalid="!!errors.fullName"
           placeholder="Enter full name"
         />
+        <small v-if="errors.fullName" class="p-error block mt-1">{{ errors.fullName }}</small>
       </div>
 
       <div class="col-12 mb-3">
@@ -162,8 +191,10 @@ const handleCancel = () => {
           v-model="formData.email"
           class="w-full"
           type="email"
+          :invalid="!!errors.email"
           placeholder="Enter email address"
         />
+        <small v-if="errors.email" class="p-error block mt-1">{{ errors.email }}</small>
       </div>
 
       <div class="col-12 mb-3">
@@ -172,8 +203,10 @@ const handleCancel = () => {
           id="phoneNumber"
           v-model="formData.phoneNumber"
           class="w-full"
+          :invalid="!!errors.phoneNumber"
           placeholder="Enter phone number"
         />
+        <small v-if="errors.phoneNumber" class="p-error block mt-1">{{ errors.phoneNumber }}</small>
       </div>
 
       <div class="col-12 mb-3">
@@ -196,8 +229,10 @@ const handleCancel = () => {
           optionValue="value"
           placeholder="Select a project"
           class="w-full"
+          :invalid="!!errors.projectId"
           :disabled="projectOptions.length === 0"
         />
+        <small v-if="errors.projectId" class="p-error block mt-1">{{ errors.projectId }}</small>
       </div>
 
       <div class="col-12 mb-3">

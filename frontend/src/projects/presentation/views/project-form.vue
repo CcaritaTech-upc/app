@@ -7,6 +7,7 @@ import useProjectStore from "../../application/project.store.js";
 import { Project } from "../../domain/model/project.entity.js";
 import { CLOUDINARY_WIDGET_URL } from "../../../shared/infrastructure/constants.js";
 import { getProjectImageUploadConfig } from "../../../shared/infrastructure/cloudinary-config.js";
+import { isValidName, isValidUrl } from "../../../shared/presentation/validators.js";
 
 const { t } = useI18n();
 const route = useRoute();
@@ -22,6 +23,7 @@ const form = ref({
   occupiedUnits: 0,
   imageUrl: ""
 });
+const errors = ref({});
 const isEdit = computed(() => !!route.params.id);
 const saving = ref(false);
 const cloudinaryName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
@@ -120,7 +122,48 @@ const openUploadModal = () => {
 };
 
 const save = async () => {
+  errors.value = {};
+
+  const name = (form.value.name || '').trim();
+  const location = (form.value.location || '').trim();
+  const description = (form.value.description || '').trim();
+  const imageUrl = (form.value.imageUrl || '').trim();
+
+  if (!name) {
+    errors.value.name = 'El nombre del proyecto es obligatorio.';
+  } else if (!isValidName(name, 3)) {
+    errors.value.name = 'El nombre del proyecto debe tener al menos 3 caracteres.';
+  }
+
+  if (!location) {
+    errors.value.location = 'La ubicación del proyecto es obligatoria.';
+  } else if (!isValidName(location, 3)) {
+    errors.value.location = 'La ubicación debe tener al menos 3 caracteres.';
+  }
+
+  if (description.length > 500) {
+    errors.value.description = 'La descripción no puede exceder los 500 caracteres.';
+  }
+
+  if (imageUrl && !imageUrl.startsWith('data:') && !isValidUrl(imageUrl)) {
+    errors.value.imageUrl = 'Ingrese una URL de imagen válida.';
+  }
+
+  if (Object.keys(errors.value).length > 0) {
+    toast.add({
+      severity: 'warn',
+      summary: 'Campos requeridos',
+      detail: 'Por favor complete los campos obligatorios antes de continuar.',
+      life: 3000
+    });
+    return;
+  }
+
   saving.value = true;
+  form.value.name = name;
+  form.value.location = location;
+  form.value.description = description;
+
   try {
     const project = new Project({
       id: isEdit.value ? parseInt(route.params.id) : null,
@@ -205,9 +248,10 @@ const cancel = () => {
             <pv-input-text
                 v-model="form.name"
                 class="w-full input-enhanced"
-                required
+                :invalid="!!errors.name"
                 :placeholder="t('projects.fields.name-placeholder')"
             />
+            <small v-if="errors.name" class="p-error block mt-1">{{ errors.name }}</small>
           </div>
 
           <!-- Description Field -->
@@ -219,9 +263,11 @@ const cancel = () => {
             <pv-textarea
                 v-model="form.description"
                 class="w-full input-enhanced"
+                :invalid="!!errors.description"
                 rows="3"
                 :placeholder="t('projects.fields.description-placeholder')"
             />
+            <small v-if="errors.description" class="p-error block mt-1">{{ errors.description }}</small>
           </div>
 
           <!-- Location Field -->
@@ -229,12 +275,15 @@ const cancel = () => {
             <label class="form-label">
               <i class="pi pi-map-marker form-label__icon mr-2"></i>
               {{ t("projects.fields.location") }}
+              <span class="text-red-500 ml-1">*</span>
             </label>
             <pv-input-text
                 v-model="form.location"
                 class="w-full input-enhanced"
+                :invalid="!!errors.location"
                 :placeholder="t('projects.fields.location-placeholder')"
             />
+            <small v-if="errors.location" class="p-error block mt-1">{{ errors.location }}</small>
           </div>
 
           <!-- Total Units — read-only on edit; hidden on creation because

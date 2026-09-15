@@ -28,8 +28,10 @@
               v-model="registerForm.email"
               type="email"
               :placeholder="$t('iam.registerBuilder.emailPlaceholder')"
+              :invalid="!!fieldErrors.email"
               class="w-full"
             />
+            <small v-if="fieldErrors.email" class="p-error block mt-1">{{ fieldErrors.email }}</small>
           </div>
 
           <!-- Password -->
@@ -39,10 +41,12 @@
               id="password"
               v-model="registerForm.password"
               :placeholder="$t('iam.registerBuilder.passwordPlaceholder')"
+              :invalid="!!fieldErrors.password"
               toggleMask
               class="w-full"
               inputClass="w-full"
             />
+            <small v-if="fieldErrors.password" class="p-error block mt-1">{{ fieldErrors.password }}</small>
           </div>
 
           <!-- Confirm Password -->
@@ -52,11 +56,13 @@
               id="confirmPassword"
               v-model="registerForm.confirmPassword"
               :placeholder="$t('iam.registerBuilder.confirmPasswordPlaceholder')"
+              :invalid="!!fieldErrors.confirmPassword"
               :feedback="false"
               toggleMask
               class="w-full"
               inputClass="w-full"
             />
+            <small v-if="fieldErrors.confirmPassword" class="p-error block mt-1">{{ fieldErrors.confirmPassword }}</small>
           </div>
 
           <!-- Error Message -->
@@ -135,8 +141,10 @@
               id="name"
               v-model="registerForm.name"
               :placeholder="$t('iam.registerBuilder.namePlaceholder')"
+              :invalid="!!fieldErrors.name"
               class="w-full"
             />
+            <small v-if="fieldErrors.name" class="p-error block mt-1">{{ fieldErrors.name }}</small>
           </div>
 
           <!-- Username -->
@@ -146,8 +154,10 @@
               id="username"
               v-model="registerForm.username"
               :placeholder="$t('iam.registerBuilder.usernamePlaceholder')"
+              :invalid="!!fieldErrors.username"
               class="w-full"
             />
+            <small v-if="fieldErrors.username" class="p-error block mt-1">{{ fieldErrors.username }}</small>
           </div>
 
           <!-- Address -->
@@ -157,8 +167,10 @@
               id="address"
               v-model="registerForm.address"
               :placeholder="$t('iam.registerBuilder.addressPlaceholder')"
+              :invalid="!!fieldErrors.address"
               class="w-full"
             />
+            <small v-if="fieldErrors.address" class="p-error block mt-1">{{ fieldErrors.address }}</small>
           </div>
 
           <!-- Age -->
@@ -167,11 +179,13 @@
             <pv-input-number
               id="age"
               v-model="registerForm.age"
-              :min="1"
-              :max="100"
+              :min="18"
+              :max="120"
               :placeholder="$t('iam.registerBuilder.agePlaceholder')"
+              :invalid="!!fieldErrors.age"
               class="w-full"
             />
+            <small v-if="fieldErrors.age" class="p-error block mt-1">{{ fieldErrors.age }}</small>
           </div>
 
           <!-- Phone Number -->
@@ -181,8 +195,10 @@
               id="phoneNumber"
               v-model="registerForm.phoneNumber"
               :placeholder="$t('iam.registerBuilder.phoneNumberPlaceholder')"
+              :invalid="!!fieldErrors.phoneNumber"
               class="w-full"
             />
+            <small v-if="fieldErrors.phoneNumber" class="p-error block mt-1">{{ fieldErrors.phoneNumber }}</small>
           </div>
 
           <!-- Error/Success Messages -->
@@ -228,12 +244,21 @@ import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useIamStore } from '../../application/iam.store.js';
 import { useProfileStore } from '../../../profiles/application/profile.store.js';
+import {
+  isValidEmail,
+  isValidPhone,
+  isValidAge,
+  isValidName,
+  isValidUsername,
+  isValidPassword
+} from '../../../shared/presentation/validators.js';
 
 const router = useRouter();
 const iamStore = useIamStore();
 const profileStore = useProfileStore();
 
 const currentStep = ref(1);
+const fieldErrors = ref({});
 
 import { CLOUDINARY_WIDGET_URL } from "../../../shared/infrastructure/constants.js";
 import { getAvatarUploadConfig } from "../../../shared/infrastructure/cloudinary-config.js";
@@ -314,33 +339,36 @@ const successMessage = ref('');
 
 function goToStep2() {
   errorMessage.value = '';
+  fieldErrors.value = {};
 
-  // Validate required fields
-  if (!registerForm.value.email || !registerForm.value.password || !registerForm.value.confirmPassword) {
-    errorMessage.value = 'Please fill in all required fields';
+  const email = (registerForm.value.email || '').trim();
+  const password = registerForm.value.password || '';
+  const confirmPassword = registerForm.value.confirmPassword || '';
+
+  if (!email) {
+    fieldErrors.value.email = 'El correo electrónico es obligatorio.';
+  } else if (!isValidEmail(email)) {
+    fieldErrors.value.email = 'Ingrese un correo electrónico válido (ejemplo: usuario@empresa.com).';
+  }
+
+  if (!password) {
+    fieldErrors.value.password = 'La contraseña es obligatoria.';
+  } else if (!isValidPassword(password, 6)) {
+    fieldErrors.value.password = 'La contraseña debe tener al menos 6 caracteres.';
+  }
+
+  if (!confirmPassword) {
+    fieldErrors.value.confirmPassword = 'Debe confirmar su contraseña.';
+  } else if (password !== confirmPassword) {
+    fieldErrors.value.confirmPassword = 'Las contraseñas no coinciden.';
+  }
+
+  if (Object.keys(fieldErrors.value).length > 0) {
+    errorMessage.value = 'Por favor complete correctamente los campos requeridos.';
     return;
   }
 
-  // Validate email format
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(registerForm.value.email)) {
-    errorMessage.value = 'Please enter a valid email address';
-    return;
-  }
-
-  // Validate passwords match
-  if (registerForm.value.password !== registerForm.value.confirmPassword) {
-    errorMessage.value = 'Passwords do not match';
-    return;
-  }
-
-  // Validate password strength
-  if (registerForm.value.password.length < 6) {
-    errorMessage.value = 'Password must be at least 6 characters long';
-    return;
-  }
-
-  // All validations passed, move to next step
+  registerForm.value.email = email;
   currentStep.value = 2;
 }
 
@@ -348,11 +376,46 @@ async function handleRegister() {
   isLoading.value = true;
   errorMessage.value = '';
   successMessage.value = '';
+  fieldErrors.value = {};
 
-  // Validate required fields for step 2
-  if (!registerForm.value.name || !registerForm.value.username || !registerForm.value.address ||
-      !registerForm.value.age || !registerForm.value.phoneNumber) {
-    errorMessage.value = 'Please fill in all required fields';
+  const name = (registerForm.value.name || '').trim();
+  const username = (registerForm.value.username || '').trim();
+  const address = (registerForm.value.address || '').trim();
+  const age = registerForm.value.age;
+  const phoneNumber = (registerForm.value.phoneNumber || '').trim();
+
+  if (!name) {
+    fieldErrors.value.name = 'El nombre completo es obligatorio.';
+  } else if (!isValidName(name, 2)) {
+    fieldErrors.value.name = 'El nombre debe tener al menos 2 caracteres.';
+  }
+
+  if (!username) {
+    fieldErrors.value.username = 'El nombre de usuario es obligatorio.';
+  } else if (!isValidUsername(username)) {
+    fieldErrors.value.username = 'El usuario debe tener entre 3 y 30 caracteres alfanuméricos (sin espacios).';
+  }
+
+  if (!address) {
+    fieldErrors.value.address = 'La dirección es obligatoria.';
+  } else if (address.length < 4) {
+    fieldErrors.value.address = 'La dirección debe tener al menos 4 caracteres.';
+  }
+
+  if (age === null || age === undefined || age === '') {
+    fieldErrors.value.age = 'La edad es obligatoria.';
+  } else if (!isValidAge(age, 18, 120)) {
+    fieldErrors.value.age = 'Debe ingresar una edad válida entre 18 y 120 años.';
+  }
+
+  if (!phoneNumber) {
+    fieldErrors.value.phoneNumber = 'El número de teléfono es obligatorio.';
+  } else if (!isValidPhone(phoneNumber)) {
+    fieldErrors.value.phoneNumber = 'Ingrese un número telefónico válido (de 7 a 15 dígitos numéricos).';
+  }
+
+  if (Object.keys(fieldErrors.value).length > 0) {
+    errorMessage.value = 'Por favor corrija los campos marcados antes de continuar.';
     isLoading.value = false;
     return;
   }

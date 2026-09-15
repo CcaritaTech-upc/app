@@ -2,6 +2,7 @@
 import { computed, reactive, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { DeviceStatus } from '../../domain/model/device-status.enum.js';
+import { isValidName, isValidMacAddress } from '../../../shared/presentation/validators.js';
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -13,6 +14,13 @@ const emit = defineEmits(['update:modelValue', 'save', 'cancel']);
 const { t } = useI18n();
 
 const form = reactive({ id: null, name: '', type: '', location: '', projectId: null, status: DeviceStatus.ONLINE, macAddress: '' });
+
+const errors = reactive({
+  name: '',
+  type: '',
+  location: '',
+  macAddress: ''
+});
 
 const typeOptions = [
   { label: t('devices.types.temperature'), value: 'temperature' },
@@ -40,6 +48,10 @@ watch(() => props.device, (d) => {
     form.status = d.status || DeviceStatus.ONLINE;
     form.macAddress = d.macAddress || '';
   }
+  errors.name = '';
+  errors.type = '';
+  errors.location = '';
+  errors.macAddress = '';
 }, { immediate: true });
 
 watch(() => props.modelValue, (isVisible) => {
@@ -52,6 +64,10 @@ watch(() => props.modelValue, (isVisible) => {
     form.status = DeviceStatus.ONLINE;
     form.macAddress = '';
   }
+  errors.name = '';
+  errors.type = '';
+  errors.location = '';
+  errors.macAddress = '';
 });
 
 const visible = computed({
@@ -59,15 +75,44 @@ const visible = computed({
   set: (val) => emit('update:modelValue', val)
 });
 
-const isValid = computed(() => !!form.name && !!form.type && !!form.location);
+function validate() {
+  errors.name = '';
+  errors.type = '';
+  errors.location = '';
+  errors.macAddress = '';
+  let valid = true;
+
+  if (!isValidName(form.name, 2, 50)) {
+    errors.name = 'El nombre del dispositivo debe tener entre 2 y 50 caracteres.';
+    valid = false;
+  }
+  if (!form.type) {
+    errors.type = 'Seleccione un tipo de dispositivo.';
+    valid = false;
+  }
+  if (!form.location || form.location.trim().length < 2 || form.location.trim().length > 100) {
+    errors.location = 'La ubicación debe tener entre 2 y 100 caracteres.';
+    valid = false;
+  }
+  if (form.macAddress && !isValidMacAddress(form.macAddress)) {
+    errors.macAddress = 'Formato de dirección MAC inválido (ej: AA:BB:CC:DD:EE:FF).';
+    valid = false;
+  }
+  return valid;
+}
 
 const onHide = () => {
   emit('cancel');
 };
 
 const onSave = () => {
-  if (!isValid.value) return;
-  emit('save', { ...form });
+  if (!validate()) return;
+  emit('save', {
+    ...form,
+    name: form.name.trim(),
+    location: form.location.trim(),
+    macAddress: form.macAddress ? form.macAddress.trim() : ''
+  });
 };
 </script>
 
@@ -75,23 +120,54 @@ const onSave = () => {
   <pv-dialog v-model:visible="visible" modal :header="props.isNew ? t('devices.add.title') : t('devices.edit.title')" :style="{ width: '450px' }" @hide="onHide" contentClass="device-edit-dialog">
     <div class="flex flex-column gap-4 dialog-body">
       <div class="flex flex-column gap-2">
-        <label class="font-medium text-gray-800">{{ t('devices.fields.name') }}</label>
-        <pv-input-text v-model="form.name" :placeholder="t('devices.fields.name')" class="text-input" />
+        <label class="font-medium text-gray-800">{{ t('devices.fields.name') }} *</label>
+        <pv-input-text
+          v-model="form.name"
+          :placeholder="t('devices.fields.name')"
+          :invalid="!!errors.name"
+          class="text-input"
+          @input="errors.name = ''"
+        />
+        <small v-if="errors.name" class="p-error">{{ errors.name }}</small>
       </div>
 
       <div class="flex flex-column gap-2">
-        <label class="font-medium text-gray-800">{{ t('devices.fields.type') }}</label>
-        <pv-select v-model="form.type" :options="typeOptions" optionLabel="label" optionValue="value" :placeholder="t('devices.fields.type')" class="select-input device-select-darktext" />
+        <label class="font-medium text-gray-800">{{ t('devices.fields.type') }} *</label>
+        <pv-select
+          v-model="form.type"
+          :options="typeOptions"
+          optionLabel="label"
+          optionValue="value"
+          :placeholder="t('devices.fields.type')"
+          :invalid="!!errors.type"
+          class="select-input device-select-darktext"
+          @change="errors.type = ''"
+        />
+        <small v-if="errors.type" class="p-error">{{ errors.type }}</small>
       </div>
 
       <div class="flex flex-column gap-2">
-        <label class="font-medium text-gray-800">{{ t('devices.fields.location') }}</label>
-        <pv-input-text v-model="form.location" :placeholder="t('devices.fields.location')" class="text-input" />
+        <label class="font-medium text-gray-800">{{ t('devices.fields.location') }} *</label>
+        <pv-input-text
+          v-model="form.location"
+          :placeholder="t('devices.fields.location')"
+          :invalid="!!errors.location"
+          class="text-input"
+          @input="errors.location = ''"
+        />
+        <small v-if="errors.location" class="p-error">{{ errors.location }}</small>
       </div>
 
       <div class="flex flex-column gap-2">
         <label class="font-medium text-gray-800">{{ t('devices.fields.macAddress') }}</label>
-        <pv-input-text v-model="form.macAddress" :placeholder="t('devices.fields.macAddress')" class="text-input" />
+        <pv-input-text
+          v-model="form.macAddress"
+          :placeholder="t('devices.fields.macAddress')"
+          :invalid="!!errors.macAddress"
+          class="text-input"
+          @input="errors.macAddress = ''"
+        />
+        <small v-if="errors.macAddress" class="p-error">{{ errors.macAddress }}</small>
       </div>
 
       <div v-if="!props.isNew" class="flex flex-column gap-2">
@@ -103,7 +179,7 @@ const onSave = () => {
     <template #footer>
       <div class="flex justify-content-end gap-2 w-full">
         <pv-button :label="t('devices.actions.cancel')" text @click="visible = false" />
-        <pv-button :label="t('devices.actions.save')" :disabled="!isValid" @click="onSave" />
+        <pv-button :label="t('devices.actions.save')" @click="onSave" />
       </div>
     </template>
   </pv-dialog>

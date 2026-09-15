@@ -25,9 +25,10 @@
                 v-model="loginForm.email"
                 type="email"
                 :placeholder="$t('iam.login.emailPlaceholder')"
+                :invalid="!!fieldErrors.email"
                 class="w-full"
-                required
               />
+              <small v-if="fieldErrors.email" class="p-error block mt-1">{{ fieldErrors.email }}</small>
             </div>
 
             <!-- Password -->
@@ -40,12 +41,13 @@
                 id="password"
                 v-model="loginForm.password"
                 :placeholder="$t('iam.login.passwordPlaceholder')"
+                :invalid="!!fieldErrors.password"
                 :feedback="false"
                 toggleMask
                 class="w-full"
                 inputClass="w-full"
-                required
               />
+              <small v-if="fieldErrors.password" class="p-error block mt-1">{{ fieldErrors.password }}</small>
             </div>
 
             <!-- Error Message -->
@@ -97,6 +99,7 @@
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useIamStore } from '../../application/iam.store.js';
+import { isValidEmail } from '../../../shared/presentation/validators.js';
 
 const router = useRouter();
 const iamStore = useIamStore();
@@ -108,17 +111,37 @@ const loginForm = ref({
 
 const isLoading = ref(false);
 const errorMessage = ref('');
+const fieldErrors = ref({});
 
 async function handleLogin() {
-  isLoading.value = true;
   errorMessage.value = '';
+  fieldErrors.value = {};
+
+  const email = (loginForm.value.email || '').trim();
+  const password = loginForm.value.password || '';
+
+  if (!email) {
+    fieldErrors.value.email = 'El correo electrónico es requerido.';
+  } else if (!isValidEmail(email)) {
+    fieldErrors.value.email = 'Ingrese un formato de correo electrónico válido.';
+  }
+
+  if (!password) {
+    fieldErrors.value.password = 'La contraseña es requerida.';
+  }
+
+  if (Object.keys(fieldErrors.value).length > 0) {
+    return;
+  }
+
+  isLoading.value = true;
 
   try {
-    await iamStore.signIn(loginForm.value.email, loginForm.value.password);
+    await iamStore.signIn(email, password);
     // Redirect to home or dashboard after successful login
     router.push({ name: 'home' });
   } catch (error) {
-    errorMessage.value = error.response?.data?.message || 'Invalid email or password';
+    errorMessage.value = error.response?.data?.message || 'Correo o contraseña incorrectos.';
   } finally {
     isLoading.value = false;
   }

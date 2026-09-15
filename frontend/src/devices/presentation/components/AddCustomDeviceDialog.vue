@@ -86,6 +86,9 @@ watch(visible, (isOpen) => {
     form.deviceName = '';
     form.selectedUnitId = unitOptions.value[0]?.value ?? null;
     errorMessage.value = '';
+    errors.type = '';
+    errors.name = '';
+    errors.unit = '';
     loadCatalogTypes();
   }
 });
@@ -100,22 +103,40 @@ onMounted(() => {
 const errorMessage = ref('');
 const submitting = ref(false);
 
+const errors = reactive({
+  type: '',
+  name: '',
+  unit: ''
+});
+
 // ── Validation ────────────────────────────────────────────────────────────────
 
 function validate() {
-  if (!form.selectedTypeCode) return 'Please select a device type.';
-  if (!form.deviceName.trim()) return 'Device name is required.';
-  if (form.selectedUnitId == null) return 'Please select a unit.';
-  return null;
+  errors.type = '';
+  errors.name = '';
+  errors.unit = '';
+  let valid = true;
+
+  if (!form.selectedTypeCode) {
+    errors.type = 'Seleccione un tipo de dispositivo.';
+    valid = false;
+  }
+  if (!form.deviceName || form.deviceName.trim().length < 2 || form.deviceName.trim().length > 50) {
+    errors.name = 'El nombre del dispositivo debe tener entre 2 y 50 caracteres.';
+    valid = false;
+  }
+  if (form.selectedUnitId == null) {
+    errors.unit = 'Seleccione una unidad asignada.';
+    valid = false;
+  }
+  return valid;
 }
 
 // ── Submit ────────────────────────────────────────────────────────────────────
 
 async function onSubmit() {
   errorMessage.value = '';
-  const validationError = validate();
-  if (validationError) {
-    errorMessage.value = validationError;
+  if (!validate()) {
     return;
   }
 
@@ -193,9 +214,12 @@ function onCancel() {
           option-value="value"
           :loading="catalogLoading"
           placeholder="Select a device type"
+          :invalid="!!errors.type"
           class="field-input"
+          @change="errors.type = ''"
         />
-        <small v-if="typeOptions.length === 0 && !catalogLoading" class="hint warn">
+        <small v-if="errors.type" class="p-error block mt-1">{{ errors.type }}</small>
+        <small v-else-if="typeOptions.length === 0 && !catalogLoading" class="hint warn">
           No unit-compatible device types available.
         </small>
       </div>
@@ -206,9 +230,12 @@ function onCancel() {
         <pv-input-text
           v-model="form.deviceName"
           placeholder="e.g. Living Room AC"
-          maxlength="100"
+          maxlength="50"
+          :invalid="!!errors.name"
           class="field-input"
+          @input="errors.name = ''"
         />
+        <small v-if="errors.name" class="p-error block mt-1">{{ errors.name }}</small>
       </div>
 
       <!-- Unit picker -->
@@ -220,9 +247,12 @@ function onCancel() {
           option-label="label"
           option-value="value"
           placeholder="Select a unit"
+          :invalid="!!errors.unit"
           class="field-input"
+          @change="errors.unit = ''"
         />
-        <small v-if="unitOptions.length === 0" class="hint warn">
+        <small v-if="errors.unit" class="p-error block mt-1">{{ errors.unit }}</small>
+        <small v-else-if="unitOptions.length === 0" class="hint warn">
           No units found. Make sure your owner dashboard has loaded.
         </small>
       </div>

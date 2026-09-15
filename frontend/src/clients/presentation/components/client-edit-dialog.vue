@@ -1,6 +1,7 @@
 <script setup>
 import { ref, watch, computed, onMounted } from 'vue';
 import { ProjectsFacade } from '../../infrastructure/projects.facade.js';
+import { isValidEmail, isValidPhone, isValidName } from '../../../shared/presentation/validators.js';
 
 const props = defineProps({
   visible: {
@@ -17,6 +18,7 @@ const emit = defineEmits(['update:visible', 'save']);
 
 const projectsFacade = new ProjectsFacade();
 const localVisible = ref(props.visible);
+const errors = ref({});
 const projects = ref([]);
 const units = ref([]);
 const loadingUnits = ref(false);
@@ -82,6 +84,7 @@ const unitOptions = computed(() => {
 
 watch(() => props.visible, async (newVal) => {
   localVisible.value = newVal;
+  errors.value = {};
   if (newVal && props.client) {
     formData.value = { ...props.client };
     if (props.client.projectId) {
@@ -120,11 +123,49 @@ watch(() => formData.value.unitId, (newUnitId) => {
 });
 
 const handleSave = () => {
+  errors.value = {};
+
+  const fullName = (formData.value.fullName || '').trim();
+  const email = (formData.value.email || '').trim();
+  const phoneNumber = (formData.value.phoneNumber || '').trim();
+  const address = (formData.value.address || '').trim();
+  const projectId = formData.value.projectId;
+
+  if (!fullName) {
+    errors.value.fullName = 'El nombre completo es obligatorio.';
+  } else if (!isValidName(fullName, 2)) {
+    errors.value.fullName = 'El nombre completo debe tener al menos 2 caracteres.';
+  }
+
+  if (!email) {
+    errors.value.email = 'El correo electrónico es obligatorio.';
+  } else if (!isValidEmail(email)) {
+    errors.value.email = 'Ingrese un correo electrónico válido (ejemplo: usuario@empresa.com).';
+  }
+
+  if (phoneNumber && !isValidPhone(phoneNumber)) {
+    errors.value.phoneNumber = 'Ingrese un número telefónico válido (de 7 a 15 dígitos numéricos).';
+  }
+
+  if (!projectId) {
+    errors.value.projectId = 'Debe seleccionar un proyecto para este cliente.';
+  }
+
+  if (Object.keys(errors.value).length > 0) {
+    return;
+  }
+
+  formData.value.fullName = fullName;
+  formData.value.email = email;
+  formData.value.phoneNumber = phoneNumber;
+  formData.value.address = address;
+
   emit('save', formData.value);
   localVisible.value = false;
 };
 
 const handleCancel = () => {
+  errors.value = {};
   localVisible.value = false;
 };
 
@@ -145,22 +186,28 @@ const accountStatementOptions = [
   >
     <div class="grid">
       <div class="col-12 mb-3">
-        <label for="fullName" class="block mb-2 font-semibold">Full Name</label>
+        <label for="fullName" class="block mb-2 font-semibold">Full Name *</label>
         <pv-input-text
           id="fullName"
           v-model="formData.fullName"
           class="w-full"
+          :invalid="!!errors.fullName"
+          placeholder="Enter full name"
         />
+        <small v-if="errors.fullName" class="p-error block mt-1">{{ errors.fullName }}</small>
       </div>
 
       <div class="col-12 mb-3">
-        <label for="email" class="block mb-2 font-semibold">Email</label>
+        <label for="email" class="block mb-2 font-semibold">Email *</label>
         <pv-input-text
           id="email"
           v-model="formData.email"
           class="w-full"
           type="email"
+          :invalid="!!errors.email"
+          placeholder="Enter email address"
         />
+        <small v-if="errors.email" class="p-error block mt-1">{{ errors.email }}</small>
       </div>
 
       <div class="col-12 mb-3">
@@ -169,7 +216,10 @@ const accountStatementOptions = [
           id="phoneNumber"
           v-model="formData.phoneNumber"
           class="w-full"
+          :invalid="!!errors.phoneNumber"
+          placeholder="Enter phone number"
         />
+        <small v-if="errors.phoneNumber" class="p-error block mt-1">{{ errors.phoneNumber }}</small>
       </div>
 
       <div class="col-12 mb-3">
@@ -178,11 +228,12 @@ const accountStatementOptions = [
           id="address"
           v-model="formData.address"
           class="w-full"
+          placeholder="Enter address"
         />
       </div>
 
       <div class="col-12 mb-3">
-        <label for="projectId" class="block mb-2 font-semibold">Project</label>
+        <label for="projectId" class="block mb-2 font-semibold">Project *</label>
         <pv-select
           id="projectId"
           v-model="formData.projectId"
@@ -191,8 +242,10 @@ const accountStatementOptions = [
           optionValue="value"
           placeholder="Select a project"
           class="w-full"
+          :invalid="!!errors.projectId"
           :disabled="projectOptions.length === 0"
         />
+        <small v-if="errors.projectId" class="p-error block mt-1">{{ errors.projectId }}</small>
       </div>
 
       <div class="col-12 mb-3">

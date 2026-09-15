@@ -45,7 +45,14 @@
         <h3 class="card-title">{{ $t('profile.accountInformation') }}</h3>
         <div class="info-group">
           <label>{{ $t('profile.fullName') }}</label>
-          <input type="text" v-model="profile.name" :readonly="!isEditing" class="info-input" />
+          <input
+            type="text"
+            v-model="profile.name"
+            :readonly="!isEditing"
+            :class="['info-input', { 'input-error': isEditing && errors.name }]"
+            @input="errors.name = ''"
+          />
+          <small v-if="isEditing && errors.name" class="p-error">{{ errors.name }}</small>
         </div>
         <div class="info-group">
           <label>{{ $t('profile.email') }}</label>
@@ -53,15 +60,36 @@
         </div>
         <div class="info-group">
           <label>{{ $t('profile.phoneNumber') }}</label>
-          <input type="text" v-model="profile.phoneNumber" :readonly="!isEditing" class="info-input" />
+          <input
+            type="text"
+            v-model="profile.phoneNumber"
+            :readonly="!isEditing"
+            :class="['info-input', { 'input-error': isEditing && errors.phoneNumber }]"
+            @input="errors.phoneNumber = ''"
+          />
+          <small v-if="isEditing && errors.phoneNumber" class="p-error">{{ errors.phoneNumber }}</small>
         </div>
         <div class="info-group">
           <label>{{ $t('profile.address') }}</label>
-          <input type="text" v-model="profile.address" :readonly="!isEditing" class="info-input" />
+          <input
+            type="text"
+            v-model="profile.address"
+            :readonly="!isEditing"
+            :class="['info-input', { 'input-error': isEditing && errors.address }]"
+            @input="errors.address = ''"
+          />
+          <small v-if="isEditing && errors.address" class="p-error">{{ errors.address }}</small>
         </div>
         <div class="info-group">
           <label>{{ $t('profile.secondEmail') }}</label>
-          <input type="email" v-model="profile.secondEmail" :readonly="!isEditing" class="info-input" />
+          <input
+            type="email"
+            v-model="profile.secondEmail"
+            :readonly="!isEditing"
+            :class="['info-input', { 'input-error': isEditing && errors.secondEmail }]"
+            @input="errors.secondEmail = ''"
+          />
+          <small v-if="isEditing && errors.secondEmail" class="p-error">{{ errors.secondEmail }}</small>
         </div>
         <h3 class="card-title">{{ $t('profile.appLanguage') }}</h3>
         <select v-model="$i18n.locale" class="language-select">
@@ -74,10 +102,11 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, reactive } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useProfileStore } from '../../application/profile.store.js'
 import { ProfileApi } from '../../infrastructure/profile-api.js'
+import { isValidName, isValidPhone, isValidEmail } from '../../../shared/presentation/validators.js'
 import PvButton from 'primevue/button'
 
 const { t } = useI18n()
@@ -86,6 +115,43 @@ const api = new ProfileApi()
 const profile = computed(() => store.profile)
 const isEditing = ref(false)
 const fileInput = ref(null)
+
+const errors = reactive({
+  name: '',
+  phoneNumber: '',
+  address: '',
+  secondEmail: ''
+})
+
+function validate() {
+  errors.name = ''
+  errors.phoneNumber = ''
+  errors.address = ''
+  errors.secondEmail = ''
+  let valid = true
+
+  if (!isValidName(profile.value.name, 2)) {
+    errors.name = 'El nombre completo debe tener al menos 2 caracteres.'
+    valid = false
+  }
+
+  if (profile.value.phoneNumber && !isValidPhone(profile.value.phoneNumber)) {
+    errors.phoneNumber = 'Número de teléfono inválido (debe contener entre 7 y 15 dígitos).'
+    valid = false
+  }
+
+  if (profile.value.address && profile.value.address.trim().length < 4) {
+    errors.address = 'La dirección debe tener al menos 4 caracteres.'
+    valid = false
+  }
+
+  if (profile.value.secondEmail && !isValidEmail(profile.value.secondEmail)) {
+    errors.secondEmail = 'Formato de correo secundario no válido.'
+    valid = false
+  }
+
+  return valid
+}
 
 function triggerPhotoUpload() {
   if (fileInput.value) {
@@ -106,9 +172,18 @@ function handlePhotoChange(event) {
 
 async function toggleEdit() {
   if (isEditing.value) {
+    if (!validate()) {
+      return
+    }
     await saveProfile()
+    isEditing.value = false
+  } else {
+    errors.name = ''
+    errors.phoneNumber = ''
+    errors.address = ''
+    errors.secondEmail = ''
+    isEditing.value = true
   }
-  isEditing.value = !isEditing.value
 }
 
 async function saveProfile() {
@@ -136,6 +211,10 @@ async function saveProfile() {
 
 function cancelEdit() {
   isEditing.value = false
+  errors.name = ''
+  errors.phoneNumber = ''
+  errors.address = ''
+  errors.secondEmail = ''
   // Use userId from profile, not profile.id
   store.fetchProfile(profile.value.userId)
 }
@@ -282,6 +361,16 @@ function cancelEdit() {
   padding: 0.6rem 0.8rem;
   font-size: 0.95rem;
   color: #111827;
+}
+.info-input.input-error {
+  border-color: #ef4444 !important;
+  background-color: #fef2f2 !important;
+}
+.p-error {
+  color: #ef4444;
+  font-size: 0.85rem;
+  margin-top: 0.25rem;
+  display: block;
 }
 .language-select {
   margin-top: 10px;

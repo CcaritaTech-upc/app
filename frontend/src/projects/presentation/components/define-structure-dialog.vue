@@ -5,6 +5,7 @@ import { useToast } from 'primevue/usetoast';
 import useProjectStore from '../../application/project.store.js';
 import { useDeviceStore } from '../../../devices/application/device.store.js';
 import { TOAST_INVOICE_ERROR_DURATION_MS, TOAST_AUTH_ERROR_DURATION_MS } from '../../../shared/infrastructure/constants.js';
+import { isValidEmail } from '../../../shared/presentation/validators.js';
 
 const props = defineProps({
     visible: {
@@ -174,14 +175,30 @@ function buildPayload() {
 }
 
 async function handleSubmit() {
-    if (floors.value < 1 || unitsPerFloor.value < 1) {
+    if (floors.value < 1 || floors.value > 100 || unitsPerFloor.value < 1 || unitsPerFloor.value > 50) {
         toast.add({
             severity: 'warn',
-            summary: 'Validation error',
-            detail: 'Floors and units per floor must be at least 1.',
+            summary: 'Error de validación',
+            detail: 'Los pisos deben estar entre 1 y 100, y las unidades por piso entre 1 y 50.',
             life: TOAST_INVOICE_ERROR_DURATION_MS
         });
         return;
+    }
+
+    // Validate owner emails if assigned
+    for (const [key, email] of Object.entries(ownerEmails.value)) {
+        if (email && email.trim()) {
+            if (!isValidEmail(email.trim())) {
+                const [f, r] = key.split('-');
+                toast.add({
+                    severity: 'warn',
+                    summary: 'Correo inválido',
+                    detail: `El correo "${email}" para el Piso ${f} - Unidad ${r} no tiene un formato válido.`,
+                    life: TOAST_AUTH_ERROR_DURATION_MS
+                });
+                return;
+            }
+        }
     }
 
     submitting.value = true;
